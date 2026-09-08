@@ -1,8 +1,9 @@
-> **Customize this file**: Tailor this template to your project by noting specific contribution types you're looking for, adding a Code of Conduct, or adjusting the writing guidelines to match your style.
+# Contribute to the SiafuDB documentation
 
-# Contribute to the documentation
-
-Thank you for your interest in contributing to our documentation! This guide will help you get started.
+Thank you for your interest in contributing to the SiafuDB docs! This repo
+holds the documentation site only — for the database engine itself, see
+[`nyuchi/siafudb`](https://github.com/nyuchi/siafudb) and its own
+`CONTRIBUTING.md`.
 
 ## How to contribute
 
@@ -18,11 +19,11 @@ Thank you for your interest in contributing to our documentation! This guide wil
 2. Install the Mintlify CLI: `npm i -g mint`
 3. Create a branch for your changes
 4. Make changes
-5. Navigate to the docs directory and run `mint dev`
-6. Preview your changes at `http://localhost:3000`
+5. Run `mint dev` (or `npm run dev`) at the repo root
+6. Preview your changes at `http://localhost:11300`
 7. Commit your changes and submit a pull request
 
-For more details on local development, see our [development guide](development.mdx).
+See [README.md](README.md) for more on how this site is structured.
 
 ## Writing guidelines
 
@@ -30,5 +31,10 @@ For more details on local development, see our [development guide](development.m
 - **Address the reader directly**: Use "you" instead of "the user"
 - **Keep sentences concise**: Aim for one idea per sentence
 - **Lead with the goal**: Start instructions with what the user wants to accomplish
-- **Use consistent terminology**: Don't alternate between synonyms for the same concept
+- **Use consistent terminology**: Don't alternate between synonyms for the same concept — a SiafuDB instance is a **fragment**, not a "shard" or a "partition"
 - **Include examples**: Show, don't just tell
+
+## Code of conduct
+
+This project follows the SiafuDB
+[Code of Conduct](https://github.com/nyuchi/siafudb/blob/main/CODE_OF_CONDUCT.md).
