@@ -1,55 +1,86 @@
-# Mintlify Starter Kit
+# SiafuDB — Documentation
 
-Use the starter kit to get your docs deployed and ready to customize.
+Mintlify documentation site for [SiafuDB](https://github.com/nyuchi/siafudb) — the embedded graph database for device, edge, and Web3.
 
-Click the green **Use this template** button at the top of this repo to copy the Mintlify starter kit. The starter kit contains examples with
+This repo holds the docs site only. The database engine itself — the Rust
+crates, the sync protocol implementation, the build — lives in
+[`nyuchi/siafudb`](https://github.com/nyuchi/siafudb).
 
-- Guide pages
-- Navigation
-- Customizations
-- API reference pages
-- Use of popular components
+---
 
-**[Follow the full quickstart guide](https://starter.mintlify.com/quickstart)**
+## The system
 
-## AI-assisted writing
+**AI is the brain. SiafuDB is the memory. NTL is the nervous system.**
 
-Set up your AI coding tool to work with Mintlify:
+| Component           | Role                                          | Repo                              |
+| -------------------- | ---------------------------------------------- | ----------------------------------- |
+| AI Agents           | The brain — reason, decide, learn             | Application layer                 |
+| SiafuDB             | The memory — hold context everywhere          | `nyuchi/siafudb`                  |
+| Graph Sync Protocol | Memory coherence — keep fragments consistent  | `nyuchi/siafudb` (coupled to DB)  |
+| NTL                 | The nervous system — neural signal transfer   | `nyuchi/ntl` (separate repo)      |
+
+This site documents SiafuDB and the Graph Sync Protocol. NTL has its own repo
+and its own Mintlify site (`http://localhost:11200` in dev).
+
+---
+
+## Structure
+
+The Mintlify manifest is `docs.json`. Four tabs:
+
+- **Documentation** — narrative: Introduction, Core Concepts, Guides, Sync, Governance.
+- **Specification** — normative wire-format and transport contracts.
+- **API Reference** — Rust crate surface.
+- **Research** — the research documents that back the architecture.
+
+Page-level content sits in `introduction.mdx`, `why-siafudb.mdx`,
+`architecture.mdx`, `concepts/*.mdx`, `guides/*.mdx`, `sync/*.mdx`,
+`spec/*.mdx`, `api-reference/*.mdx`, `governance/*.mdx`, and
+`research/*.mdx`.
+
+`research/` and `governance/` also carry a handful of `.md` working drafts
+(manifesto, path-forward, decision log addenda) that haven't been curated
+into `.mdx` pages yet — they aren't linked from `docs.json` navigation.
+
+---
+
+## Research documents
+
+The core research documents that seeded the architecture live under
+[`research/`](./research/):
+
+1. [01 — Architecture](./research/01-architecture.mdx) — Read this first.
+2. [02 — Graph Sync Protocol](./research/02-graph-sync-protocol.mdx)
+3. [03 — Decision Log](./research/03-decision-log.mdx)
+4. [04 — First Steps](./research/04-first-steps.mdx)
+
+---
+
+## Run locally
+
+This site runs on [Mintlify](https://mintlify.com). The dev server is pinned
+to port **11300** so it can coexist with the NTL docs site (pinned to port
+**11200**).
 
 ```bash
-npx skills add https://mintlify.com/docs
+npm run install:mint   # once — global install
+npm run dev            # http://localhost:11300
 ```
 
-This command installs Mintlify's documentation skill for your configured AI tools like Claude Code, Cursor, Windsurf, and others. The skill includes component reference, writing standards, and workflow guidance.
-
-See the [AI tools guides](/ai-tools) for tool-specific setup.
-
-## Development
-
-Install the [Mintlify CLI](https://www.npmjs.com/package/mint) to preview your documentation changes locally. To install, use the following command:
-
-```
-npm i -g mint
-```
-
-Run the following command at the root of your documentation, where your `docs.json` is located:
-
-```
-mint dev
-```
-
-View your local preview at `http://localhost:3000`.
+`npm run build` and `npm run broken-links` are also wired up in
+`package.json`.
 
 ## Publishing changes
 
-Install our GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app) to propagate changes from your repo to your deployment. Changes are deployed to production automatically after pushing to the default branch.
+Install the Mintlify GitHub app from your
+[dashboard](https://dashboard.mintlify.com/settings/organization/github-app)
+to propagate changes from this repo to the deployment. Changes deploy to
+production automatically after pushing to the default branch.
 
-## Need help?
+## Contributing
 
-### Troubleshooting
+See [CONTRIBUTING.md](CONTRIBUTING.md) for how to propose changes.
 
-- If your dev environment isn't running: Run `mint update` to ensure you have the most recent version of the CLI.
-- If a page loads as a 404: Make sure you are running in a folder with a valid `docs.json`.
+---
 
-### Resources
-- [Mintlify documentation](https://mintlify.com/docs)
+_Nyuchi Africa_
