@@ -1,7 +1,7 @@
 {
   "$schema": "https://mintlify.com/docs.json",
   "name": "SiafuDB",
-  "theme": "aspen",
+  "theme": "sequoia",
   "logo": {
     "dark": "/logo/dark.svg",
     "light": "/logo/light.svg",
@@ -9,9 +9,9 @@
   },
   "favicon": "/favicon.svg",
   "colors": {
-    "primary": "#C1440E",
-    "light": "#E8743B",
-    "dark": "#C1440E"
+    "primary": "#BF5A36",
+    "light": "#FF8A65",
+    "dark": "#BF5A36"
   },
   "navbar": {
     "links": [
@@ -131,11 +131,11 @@
     "default": "system"
   },
   "fonts": {
-    "family": "Noto",
-    "weight": 500,
+    "family": "Noto Sans",
+    "weight": 400,
     "format": "woff2",
     "heading": {
-      "family": "Noto serif"
+      "family": "Noto Serif"
     },
     "body": {
       "family": "Noto Sans"
