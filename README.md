@@ -1,10 +1,20 @@
-# SiafuDB — Documentation
+# SiafuDB Docs
 
-Mintlify documentation site for [SiafuDB](https://github.com/nyuchi/siafudb) — the embedded graph database for device, edge, and Web3.
+> The Mintlify documentation site for SiafuDB — the embedded graph database
+> for device, edge, and Web3.
+
+[![Lint](https://github.com/siafuDB/docs/actions/workflows/lint.yml/badge.svg)](https://github.com/siafuDB/docs/actions/workflows/lint.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+![Mintlify](https://img.shields.io/badge/Mintlify-docs-BF5A36?style=flat-square)
+![Pages](https://img.shields.io/badge/pages-30_MDX-BF5A36?style=flat-square)
+
+**Live:** [siafudb.org](https://siafudb.org) | **Engine:** [`siafuDB/siafudb`](https://github.com/siafuDB/siafudb) | **Dev port:** 11300
+
+---
 
 This repo holds the docs site only. The database engine itself — the Rust
 crates, the sync protocol implementation, the build — lives in
-[`nyuchi/siafudb`](https://github.com/nyuchi/siafudb).
+[`siafuDB/siafudb`](https://github.com/siafuDB/siafudb).
 
 ---
 
@@ -12,15 +22,16 @@ crates, the sync protocol implementation, the build — lives in
 
 **AI is the brain. SiafuDB is the memory. NTL is the nervous system.**
 
-| Component           | Role                                         | Repo                             |
-| ------------------- | -------------------------------------------- | -------------------------------- |
-| AI Agents           | The brain — reason, decide, learn            | Application layer                |
-| SiafuDB             | The memory — hold context everywhere         | `nyuchi/siafudb`                 |
-| Graph Sync Protocol | Memory coherence — keep fragments consistent | `nyuchi/siafudb` (coupled to DB) |
-| NTL                 | The nervous system — neural signal transfer  | `nyuchi/ntl` (separate repo)     |
+| Component           | Role                                         | Repo                                                                                           |
+| ------------------- | -------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| AI Agents           | The brain — reason, decide, learn            | Application layer                                                                              |
+| SiafuDB             | The memory — hold context everywhere         | [`siafuDB/siafudb`](https://github.com/siafuDB/siafudb)                                        |
+| Graph Sync Protocol | Memory coherence — keep fragments consistent | [`siafuDB/siafudb`](https://github.com/siafuDB/siafudb) (in `siafudb-sync`, coupled to the DB) |
+| NTL                 | The nervous system — neural signal transfer  | [`openNTL/ntl`](https://github.com/openNTL/ntl) (separate org)                                 |
 
 This site documents SiafuDB and the Graph Sync Protocol. NTL has its own repo
-and its own Mintlify site (`http://localhost:11200` in dev).
+and its own docs at [openntl.org](https://openntl.org) (`http://localhost:11200`
+in dev).
 
 ---
 
@@ -79,8 +90,20 @@ production automatically after pushing to the default branch.
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for how to propose changes.
+See
+[CONTRIBUTING.md](https://github.com/siafuDB/docs/blob/main/CONTRIBUTING.md)
+for how to propose changes.
 
----
+## Licence and governance
 
-> Nyuchi Africa
+The [`LICENSE`](LICENSE) file in this repo is **MIT, © 2023 Mintlify** — it
+arrived with the Mintlify starter and has not been replaced. That is what
+the repository actually carries today, so that is what this README says.
+The engine itself, in [`siafuDB/siafudb`](https://github.com/siafuDB/siafudb),
+is Apache 2.0. Aligning the docs licence with the engine's is an open task,
+not something this README should pre-announce.
+
+SiafuDB is governed by the Bundu Foundation (Zimbabwean Company Limited by
+Guarantee) and operated by [Nyuchi](https://nyuchi.com).
+
+© Bundu Foundation, operated by Nyuchi Africa (Pvt) Ltd.
