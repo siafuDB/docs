@@ -1,6 +1,6 @@
 # Graph-First Amendment — Addendum
 
-### The Graph Fabric: Two Engines, Seven Layers, One Sync Protocol
+## The Graph Fabric: Two Engines, Seven Layers, One Sync Protocol
 
 **Date:** April 2026
 **Status:** DRAFT — Pending Bryan's review
@@ -70,7 +70,7 @@ The decision to build on a Rust core (rather than maintaining the C++ KuzuDB cod
 
 SiafuDB's extensions are general-purpose infrastructure capabilities — available to any developer building applications that need embedded graph with sync, edge, or Web3 support. They are not product-specific features.
 
-**Extension 1 — The Graph Sync Protocol**
+#### Extension 1 — The Graph Sync Protocol
 
 The single most important contribution and the capability that does not exist anywhere in the open-source ecosystem. The Graph Sync Protocol enables bidirectional subgraph replication between embedded instances (device, edge, pod) and the platform's JanusGraph knowledge graph (Layer 3).
 
@@ -110,13 +110,13 @@ Redpanda event topics (Layer 4) for platform → edge sync — geographic and us
 
 The Nyuchi Honeycomb protocol (Layer 1) for platform ↔ pod sync — graph change logs are replicated across Honeycomb nodes as part of the pod's storage operations, governed by NST allocation and NHC gas fees.
 
-**Extension 2 — WASM Compilation (Edge Runtime)**
+#### Extension 2 — WASM Compilation (Edge Runtime)
 
 The SiafuDB core, extended with the Graph Sync Protocol, compiles to WebAssembly for execution inside any WASM-capable edge runtime — Cloudflare Workers and Durable Objects, Deno Deploy, Fastly Compute, Vercel Edge Functions, browsers, or any V8/WASM environment. A geographic edge instance holds a WASM-compiled embedded graph engine containing the cached subgraph of a region's entities, relationships, and context. A user edge instance holds the person's cached personal subgraph.
 
 This replaces SQLite in edge layers with a graph-native store. Edge graph queries use Cypher — the same query language as the device and the server. The edge instance can answer "show me verified restaurants within 5km that my contacts have reviewed" as a local graph traversal without calling the platform's server-side graph. The WASM compilation is platform-agnostic — SiafuDB does not lock to any single edge provider.
 
-**Extension 3 — Web3 Pod Integration (Sovereign Graph)**
+#### Extension 3 — Web3 Pod Integration (Sovereign Graph)
 
 The embedded graph engine becomes the pod's database on the Nyuchi Honeycomb network. Each person's pod runs one embedded instance, hosted on a Honeycomb node, containing their sovereign personal graph — their identity vertex, personal edges, Digital Twin memory, AI conversation context, and their sovereign copy of shared platform edges.
 
@@ -126,7 +126,7 @@ When a person verifies and their pod is provisioned (progressive decentralisatio
 
 When a person's MIT transitions to ancestral status, the pod graph undergoes heritage transformation: PII is stripped by Flink, anonymised graph patterns flow to Doris (Layer 7), and the heritage graph is preserved in Cassandra (cold tier) as part of Africa's digital heritage archive. The pod's embedded instance is decommissioned, but the graph structure lives on — anonymised — in the heritage tier.
 
-**Extension 4 — Multi-Model Extensions**
+#### Extension 4 — Multi-Model Extensions
 
 The device, edge, and pod don't only need graph storage. They also need document storage (Shamwari conversation history, cached content bodies), key-value storage (session state, configuration, feature flags), and potentially time-series storage (activity patterns, health data points). Rather than running the embedded graph engine alongside SQLite for non-graph data, Nyuchi extends the engine with:
 
@@ -138,7 +138,7 @@ The device, edge, and pod don't only need graph storage. They also need document
 
 These extensions mean one database per deployment context — one on device, one in each edge DO, one per pod — handling all local data needs in a single embedded engine.
 
-**Extension 5 — Native Platform Bindings**
+#### Extension 5 — Native Platform Bindings
 
 SiafuDB needs native bindings for every major mobile platform:
 
@@ -242,7 +242,7 @@ The question arises: why not use JanusGraph everywhere, or the Nyuchi Embedded E
 
 ### THE MUKOKO ORDER v4
 
-**Section 5 — Technology Table**
+#### Section 5 — Technology Table
 
 **INSERT** the SiafuDB:
 
@@ -250,13 +250,13 @@ The question arises: why not use JanusGraph everywhere, or the Nyuchi Embedded E
 | SiafuDB | Apache 2.0 | Embedded graph — device, edge, pod |
 ```
 
-**Section 7 — The Covenants**
+#### Section 7 — The Covenants
 
 The graph fabric deepens multiple covenants. No covenant text changes are required, but the commentary should note: the first covenant ("Your data is yours") is now fulfilled by a graph-native sovereign pod. The fifth covenant ("The edge is fast") is now fulfilled by graph-native edge caches. The sixth covenant ("The device is capable") is now fulfilled by a graph-native device store with offline AI reasoning.
 
 ### MUKOKO ARCHITECTURE v4
 
-**Section 5 — The Three Sources of Truth**
+#### Section 5 — The Three Sources of Truth
 
 **UPDATE** the Web3 Pod paragraph:
 
@@ -272,7 +272,7 @@ graph speak the same language (Cypher) and share the same vertex UUIDs — your
 identity is one graph, expressed in three places (device, pod, platform).
 ```
 
-**Section 6 — The Seven Data Layers**
+#### Section 6 — The Seven Data Layers
 
 **UPDATE** Layer 5 description to replace SQLite references with the SiafuDB:
 
@@ -292,7 +292,7 @@ Layer 4's CouchDB replication. Cypher queries on device match Cypher queries
 on the server.
 ```
 
-**Section 6 — The Application Stack, Infrastructure table**
+#### Section 6 — The Application Stack, Infrastructure table
 
 **INSERT:**
 
@@ -300,7 +300,7 @@ on the server.
 | SiafuDB | Apache 2.0 | Embedded graph (device, edge, pod) |
 ```
 
-**Section 11 — What Is Built vs. What Is Designed**
+#### Section 11 — What Is Built vs. What Is Designed
 
 **INSERT** into "Designed, Not Yet Built":
 
@@ -315,7 +315,7 @@ schemas for graph sync events.
 
 ### MUKOKO MANIFESTO v4
 
-**Section 05 — Open Source & Sovereign**
+#### Section 05 — Open Source & Sovereign
 
 **INSERT:**
 
@@ -329,7 +329,7 @@ database that holds your personal graph. Your device, your edge, your pod — al
 on sovereign graph infrastructure that the community owns permanently.
 ```
 
-**Covenant Six — The Capability**
+#### Covenant Six — The Capability
 
 The sixth covenant corresponds to Layer 6. Add the graph dimension:
 
@@ -391,6 +391,6 @@ The tri-mode principle is preserved across the entire graph fabric:
 _Graph-First Amendment — Addendum: The Graph Fabric_
 _April 2026_
 _Drafted for Bryan Fawcett_
-_Nyuchi Africa / The Bundu Family_
 
-_"Two engines. Seven layers. One graph. The relational era is over. The graph era begins here — on every device, at every edge, in every pod, across the entire platform. Built in Africa. Shared with the world."_
+> Nyuchi Africa / The Bundu Family
+> _"Two engines. Seven layers. One graph. The relational era is over. The graph era begins here — on every device, at every edge, in every pod, across the entire platform. Built in Africa. Shared with the world."_

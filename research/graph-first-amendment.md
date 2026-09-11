@@ -1,6 +1,6 @@
 # Graph-First Architectural Amendment
 
-### The Paradigm Shift — JanusGraph as Primary Data Engine, Supabase as ACID Ledger
+## The Paradigm Shift — JanusGraph as Primary Data Engine, Supabase as ACID Ledger
 
 **Date:** April 2026
 **Status:** DRAFT — Pending Bryan's review
@@ -86,7 +86,7 @@ This is the foundation for a century.
 
 Supabase retains five functional domains. Each is inherently tabular, inherently transactional, and small relative to the full data set.
 
-**1. Authentication Stubs (identity schema — reduced)**
+#### 1. Authentication Stubs (identity schema — reduced)
 
 The `identity.person` table shrinks to an authentication stub. Only the columns necessary for session validation, JWT minting, platform role enforcement, and MIT lifecycle governance remain.
 
@@ -188,19 +188,19 @@ Columns removed from `identity.person` (stale references — deleted, not migrat
 | `ceramic_did`                   | Superseded by Nyuchi Honeycomb pod architecture.                        |
 | `scylladb_doc_id`               | No longer needed — the Person vertex IS the ScyllaDB/JanusGraph record. |
 
-**2. Financial Ledger (wallet schema — unchanged)**
+#### 2. Financial Ledger (wallet schema — unchanged)
 
 The wallet schema remains entirely in Supabase. Financial transactions (transfers, balances, payment intents, emission records, legacy transfers, swaps, payment methods, MIT tokens, NFT holdings) require serializable multi-row ACID transactions. Double-spending must be impossible. Balance updates must be atomic. This is the purest ledger use case in the platform, and PostgreSQL is the right tool.
 
-**3. Service Bus (service_bus schema — unchanged)**
+#### 3. Service Bus (service_bus schema — unchanged)
 
 The service bus remains entirely in Supabase. Transactional event publishing (the `publish_event` function) requires ACID guarantees — an event must be written to the events table and the subscriptions table atomically, or not at all. Maestro reads from the service bus for orchestration. This is inherently transactional.
 
-**4. Platform Configuration (system schema — unchanged)**
+#### 4. Platform Configuration (system schema — unchanged)
 
 The system schema remains in Supabase: verification tiers, verification subject types, verification evidence matrix, themes, activity logs, change history, notifications, unified submissions. These are small, rarely-changing reference tables that benefit from SQL's querying convenience and that other schemas reference via foreign keys. Interest category definitions (`engagement.interest_category`) also stay — the 40 locked categories are platform configuration, not user data. The Interest Category vertices in JanusGraph reference these definitions by UUID.
 
-**5. RBAC Enforcement (identity RBAC tables — unchanged)**
+#### 5. RBAC Enforcement (identity RBAC tables — unchanged)
 
 `identity.platform_permission`, `identity.role_permission`, `identity.role_type` remain in Supabase. These are small permission lookup tables (43 permissions, 98 role-permission mappings, 34 role types) that the API layer checks on every authenticated request. They need to be fast, consistent, and ACID-protected.
 
@@ -397,7 +397,7 @@ The Layer 3 Amendment defined six primary node types. The graph-first amendment 
 
 ### THE MUKOKO ORDER v4
 
-**Section 5 — The Data: Seven Layers of the Covenant Architecture**
+#### Section 5 — The Data: Seven Layers of the Covenant Architecture
 
 Replace the Layer 2 row in the table:
 
@@ -435,7 +435,7 @@ The mathematical argument: Layer 2 (now the ACID ledger) is the foundation (4 = 
 
 ### MUKOKO ARCHITECTURE v4
 
-**Section 5 — The Three Sources of Truth**
+#### Section 5 — The Three Sources of Truth
 
 **REMOVE** the current Supabase/PostgreSQL 17 paragraph.
 
@@ -464,7 +464,7 @@ not table scans. The graph-first paradigm is the platform's native data represen
 for the AI era.
 ```
 
-**Section 6 — The Seven Data Layers, Layer 2**
+#### Section 6 — The Seven Data Layers, Layer 2
 
 **REMOVE** the current Layer 2 description.
 
@@ -493,7 +493,7 @@ viable relational database — small, narrow, and precisely scoped to the operat
 genuinely require serializable transactions.
 ```
 
-**Section 6 — The Seven Data Layers, Layer 3**
+#### Section 6 — The Seven Data Layers, Layer 3
 
 Update the Layer 3 title and description (additive to Layer 3 Amendment):
 
@@ -520,7 +520,7 @@ Heritage Graph (Nhaka): ancestral subgraph preservation in Cassandra, PII-stripp
 patterns flowing to Doris.
 ```
 
-**Section 11 — What Is Built vs. What Is Designed**
+#### Section 11 — What Is Built vs. What Is Designed
 
 **INSERT** into "Designed, Not Yet Built":
 
@@ -536,7 +536,7 @@ geographic knowledge graph.
 
 ### MUKOKO MANIFESTO v4
 
-**Section 05 — Open Source & Sovereign**
+#### Section 05 — Open Source & Sovereign
 
 **INSERT** after the ScyllaDB/Cassandra sovereignty paragraph:
 
@@ -552,7 +552,7 @@ The relational database remains for what it does best: exact financial transacti
 Nothing more. Frontier infrastructure does not play catch-up.
 ```
 
-**Covenant Two — The Structure**
+#### Covenant Two — The Structure
 
 The second covenant corresponds to Layer 2. Update to reflect the ACID ledger reduction:
 
@@ -564,7 +564,7 @@ eventually-consistent your wallet balance. It is exact, because financial trust
 requires exactness.
 ```
 
-**Covenant Three — The Home**
+#### Covenant Three — The Home
 
 The third covenant corresponds to Layer 3. Expand to include the knowledge graph:
 
@@ -625,6 +625,6 @@ Each phase is independently deployable. Each phase can be rolled back. The platf
 
 _Graph-First Architectural Amendment — April 2026_
 _Drafted for Bryan Fawcett_
-_Nyuchi Africa / The Bundu Family_
 
-_"The relational database was the best tool we had. The graph database is the tool we need. Frontier infrastructure does not inherit the constraints of the previous era."_
+> Nyuchi Africa / The Bundu Family
+> _"The relational database was the best tool we had. The graph database is the tool we need. Frontier infrastructure does not inherit the constraints of the previous era."_

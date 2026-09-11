@@ -337,7 +337,7 @@ We especially welcome contributions in these areas:
 - **Documentation** — tutorials, guides, API reference improvements
 - **Testing** — expanded test coverage, fuzzing, benchmarks
 
-## Licence
+## Licence of Contributions
 
 By contributing to SiafuDB, you agree that your contributions will be licensed under the Apache License, Version 2.0. See [LICENSE](LICENSE) for details.
 
