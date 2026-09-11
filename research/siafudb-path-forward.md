@@ -1,6 +1,6 @@
 # SiafuDB — Path Forward
 
-### Building the Definitive Embedded Graph Database for Device, Edge, and Web3
+## Building the Definitive Embedded Graph Database for Device, Edge, and Web3
 
 **Date:** April 2026
 **Status:** LOCKED — Engineering strategy
@@ -307,6 +307,6 @@ multi-model design principles.
 
 _SiafuDB Path Forward — April 2026_
 _Bryan Fawcett, Founder & CEO_
-_Nyuchi Africa / Bundu Foundation_
 
-_"Three projects. Three licences. One vision. The army ant takes the best from everywhere and builds something that didn't exist before."_
+> Nyuchi Africa / Bundu Foundation
+> _"Three projects. Three licences. One vision. The army ant takes the best from everywhere and builds something that didn't exist before."_

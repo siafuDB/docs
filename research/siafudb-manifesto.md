@@ -1,6 +1,6 @@
 # The SiafuDB Manifesto
 
-### The Filing Cabinet Era Is Over
+## The Filing Cabinet Era Is Over
 
 ---
 

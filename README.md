@@ -12,12 +12,12 @@ crates, the sync protocol implementation, the build — lives in
 
 **AI is the brain. SiafuDB is the memory. NTL is the nervous system.**
 
-| Component           | Role                                          | Repo                              |
-| -------------------- | ---------------------------------------------- | ----------------------------------- |
-| AI Agents           | The brain — reason, decide, learn             | Application layer                 |
-| SiafuDB             | The memory — hold context everywhere          | `nyuchi/siafudb`                  |
-| Graph Sync Protocol | Memory coherence — keep fragments consistent  | `nyuchi/siafudb` (coupled to DB)  |
-| NTL                 | The nervous system — neural signal transfer   | `nyuchi/ntl` (separate repo)      |
+| Component           | Role                                         | Repo                             |
+| ------------------- | -------------------------------------------- | -------------------------------- |
+| AI Agents           | The brain — reason, decide, learn            | Application layer                |
+| SiafuDB             | The memory — hold context everywhere         | `nyuchi/siafudb`                 |
+| Graph Sync Protocol | Memory coherence — keep fragments consistent | `nyuchi/siafudb` (coupled to DB) |
+| NTL                 | The nervous system — neural signal transfer  | `nyuchi/ntl` (separate repo)     |
 
 This site documents SiafuDB and the Graph Sync Protocol. NTL has its own repo
 and its own Mintlify site (`http://localhost:11200` in dev).
@@ -83,4 +83,4 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for how to propose changes.
 
 ---
 
-_Nyuchi Africa_
+> Nyuchi Africa
