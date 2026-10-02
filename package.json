@@ -4,10 +4,19 @@
   "version": "0.0.1",
   "description": "Mintlify documentation site for SiafuDB.",
   "scripts": {
-    "install:mint": "npm install -g mint",
     "dev": "mint dev --port 11300",
-    "build": "mint build",
-    "broken-links": "mint broken-links"
+    "build": "mint validate",
+    "broken-links": "mint broken-links",
+    "check": "vp check",
+    "lint": "vp lint",
+    "fmt": "vp fmt",
+    "test": "vp test --passWithNoTests"
+  },
+  "type": "module",
+  "packageManager": "npm@11.12.1",
+  "devDependencies": {
+    "mint": "4.2.971",
+    "vite-plus": "^1.0.0"
   },
   "engines": {
     "node": ">=18"
