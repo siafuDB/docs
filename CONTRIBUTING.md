@@ -16,10 +16,10 @@ holds the documentation site only — for the database engine itself, see
 ### Option 2: Local development
 
 1. Fork and clone this repository
-2. Install the Mintlify CLI: `npm i -g mint`
+2. Run `npm install` (installs the pinned Mintlify CLI)
 3. Create a branch for your changes
 4. Make changes
-5. Run `mint dev` (or `npm run dev`) at the repo root
+5. Run `npm run dev` at the repo root
 6. Preview your changes at `http://localhost:11300`
 7. Commit your changes and submit a pull request
 

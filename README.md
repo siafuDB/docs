@@ -74,12 +74,13 @@ to port **11300** so it can coexist with the NTL docs site (pinned to port
 **11200**).
 
 ```bash
-npm run install:mint   # once — global install
+npm install            # once — installs the pinned Mintlify CLI and Vite+
 npm run dev            # http://localhost:11300
 ```
 
-`npm run build` and `npm run broken-links` are also wired up in
-`package.json`.
+`npm run build` runs `mint validate` (strict: warnings fail it), and
+`npm run broken-links` checks links. `npm run check` is `vp check`: the
+org's Vite+ format, lint and type check, which CI runs as `vite-plus / check`.
 
 ## Publishing changes
 
