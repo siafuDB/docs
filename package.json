@@ -15,7 +15,7 @@
   "type": "module",
   "packageManager": "npm@11.12.1",
   "devDependencies": {
-    "mint": "4.2.971",
+    "mint": "4.2.1111",
     "vite-plus": "^1.0.0"
   },
   "engines": {
