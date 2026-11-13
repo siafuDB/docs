@@ -1,39 +1,65 @@
 ---
-title: "Conflict Resolution"
-description: "Vector clocks, resolution strategies, and tie-breaking rules for concurrent mutations."
+title: "Conflict resolution"
+description: "How concurrent ops on the same data are ordered and resolved: causality, hybrid logical clocks, strategies, and tie-breaking."
+keywords: ["conflict resolution", "hybrid logical clock", "last writer wins", "CRDT", "GSP"]
 ---
 
-Two fragments may commit mutations that touch the same vertex concurrently. Conflict resolution decides which mutation wins, and how — deterministically, so every fragment in the deployment reaches the same answer.
+Two devices can change the same vertex while offline. Conflict resolution decides which change wins. Every device must reach the same answer from the same ops, so the rules are deterministic.
 
-## Vector clocks
+## Status
 
-Every mutation carries a vector clock keyed by fragment identity. Comparing two clocks yields one of:
+**Draft.** Ordering by hybrid logical clock and op id is implemented in the wire format. The resolver that applies the strategies below has not been updated to it yet: the existing code still compares vector clocks. Treat the strategies as the target design.
 
-- **Happens-before** — one mutation causally precedes the other. Apply in order.
-- **Concurrent** — neither precedes the other. A conflict, resolved by strategy.
+<Warning>
+  Earlier versions of this page and of the research notes described two different last-writer-wins rules: "highest wall clock wins" and "higher vector clock wins". The second has no meaning for concurrent changes, because concurrent clocks have no order. The rule on this page replaces both.
+</Warning>
+
+## Causality
+
+Each op lists the heads its writer had applied (`deps`) and its author's previous op (`prev`). See [Mutation format](/spec/mutation-format).
+
+- **Happens-before.** Op B names op A, directly or through its dependencies. Apply A, then B. There is no conflict.
+- **Concurrent.** Neither names the other. If they touch the same property, that is a conflict, resolved by strategy.
+
+Signed ops carry no vector clocks. A vector clock grows with every device a fragment has ever seen and cannot be pruned once signed.
+
+## Ordering concurrent ops
+
+Concurrent ops are ordered by their hybrid logical clock, then by op id:
+
+1. Higher `wall_ms` wins.
+2. On a tie, higher `counter` wins.
+3. On a tie, the larger op id wins.
+
+Op ids are content hashes, so step 3 always gives one answer on every device.
+
+A hybrid logical clock uses wall time but never moves backwards. A receiver does not apply an op whose timestamp is more than 5 minutes ahead of its own clock, and does not merge that timestamp into its own clock. This limits how far a wrong or dishonest clock can win. Old timestamps are never rejected.
 
 ## Strategies
 
-Strategies are declared on the schema or the fragment:
+Strategies are declared on the schema or the fragment.
 
-| Strategy          | When to use                                   | Behaviour                                                                         |
-| ----------------- | --------------------------------------------- | --------------------------------------------------------------------------------- |
-| `LastWriterWins`  | Personal devices                              | Highest wall-clock wins; ties broken by `source` UUID                             |
-| `MergeProperties` | Collaborative content                         | Non-conflicting property changes merge; conflicting ones fall to `LastWriterWins` |
-| `RejectIncoming`  | Authoritative fragments (e.g. platform truth) | Incoming is dropped; a notification may be emitted                                |
-| `AcceptIncoming`  | Caches and read replicas                      | Incoming wins; local is discarded                                                 |
+| Strategy          | When to use              | Behavior                                                                                                |
+| ----------------- | ------------------------ | ------------------------------------------------------------------------------------------------------- |
+| `LastWriterWins`  | Personal devices         | Per property, the op that orders last wins.                                                             |
+| `MergeProperties` | Collaborative content    | Changes to different properties both apply. Changes to the same property fall back to `LastWriterWins`. |
+| `RejectIncoming`  | Authoritative fragments  | The incoming op is not applied. A notification may be emitted.                                          |
+| `AcceptIncoming`  | Caches and read replicas | The incoming op wins. Local state is discarded.                                                         |
 
-## Deterministic tie-breaking
+## Deletes
 
-Wall-clock ties are broken by `source` identity (lexicographic UUID comparison). This is deterministic across fragments without clock sync.
+A delete that is concurrent with an edit of the same vertex needs a stated rule, or devices diverge. The target rule is remove-wins: the vertex stays deleted, and a tombstone records the delete. Tombstones are not garbage-collected in v0, because collecting them lets an offline device bring deleted data back.
 
 ## Authority interaction
 
-See [Authority](/concepts/authority). Writes against `Referenced` vertices either fail outright or get rewritten as **change proposals** — a separate mutation type that the authoritative fragment may accept, reject, or merge. Change proposals bypass `RejectIncoming` by design.
+See [Authority](/concepts/authority). A write against a `Referenced` vertex either fails or becomes a **change proposal** that the authoritative fragment may accept, reject, or merge.
+
+Change proposals are not in wire format v0. Authority is also local state today: nothing in a signed op states who may write a vertex. Both are open work.
 
 ## Open questions
 
-- CRDT overlay for specific property types (counters, sets)?
-- User-visible conflict markers when `MergeProperties` cannot reconcile?
+- CRDT types for specific properties, such as counters and sets.
+- User-visible conflict markers when `MergeProperties` cannot reconcile.
+- How an op proves its author may write the target vertex.
 
-Tracked in the [Decision Log](/research/03-decision-log).
+These are tracked in the [Decision log](/research/03-decision-log).
