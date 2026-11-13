@@ -1,0 +1,64 @@
+---
+title: "Engine fork and pinning"
+description: "SiafuDB's graph engine is a fork of GrafeoDB 0.6.2. This page states what is pinned, what the rules are, and how to verify it."
+keywords: ["fork", "GrafeoDB", "engine", "pinning", "upstream", "licence"]
+---
+
+SiafuDB's graph engine is a fork of [GrafeoDB](https://github.com/GrafeoDB/grafeo), pinned at version **0.6.2**. The fork lives in the `engine/` directory of the SiafuDB repository. SiafuDB does not track, merge, or depend on upstream.
+
+This was decided on 13 November 2026 and is recorded as ADR-0001 in the repository.
+
+## Why SiafuDB forked
+
+The browser, PWA, and mobile work needs engine changes on SiafuDB's own schedule: page-level storage for browsers and encrypted pages, WebAssembly-first build profiles, change capture that behaves the same on every platform, and a choice of ciphers. Owning the engine removes the wait.
+
+Upstream remains a project SiafuDB respects and may send patches to. Nothing in SiafuDB's build, release, or roadmap depends on it.
+
+## What is pinned
+
+| Item             | Value                                                    |
+| ---------------- | -------------------------------------------------------- |
+| Baseline         | GrafeoDB 0.6.2, from the crates.io source packages       |
+| Vendored on      | 12 November 2026                                         |
+| Licence          | Apache-2.0, preserved in each crate with a `NOTICE` file |
+| Minimum Rust     | 1.99                                                     |
+| Upstream updates | None. No automatic updates of any kind.                  |
+
+## Crate names
+
+The fork is renamed so that published crates do not imply upstream endorsement. The Rust source is unchanged and library names are kept, so no `use` path changed.
+
+| Upstream          | SiafuDB fork             |
+| ----------------- | ------------------------ |
+| `grafeo`          | `siafudb-graph`          |
+| `grafeo-common`   | `siafudb-graph-common`   |
+| `grafeo-core`     | `siafudb-graph-core`     |
+| `grafeo-adapters` | `siafudb-graph-adapters` |
+| `grafeo-storage`  | `siafudb-graph-storage`  |
+| `grafeo-engine`   | `siafudb-graph-engine`   |
+
+<Note>
+  These crates are not published to crates.io yet. Until they are, depend on SiafuDB by git.
+</Note>
+
+## Rules
+
+1. The baseline is exactly the 0.6.2 source packages. Their SHA-256 hashes are recorded in `engine/UPSTREAM.md`.
+2. Nothing moves an engine crate automatically. Dependabot ignores them.
+3. An upstream fix is adopted only as a deliberate, reviewed cherry-pick, recorded in `engine/UPSTREAM.md`.
+4. Every change to `engine/` is recorded in `engine/CHANGES.md`, as the Apache-2.0 licence requires.
+5. SiafuDB owns security fixes in the engine from the fork date.
+
+## Verify the pin
+
+The repository includes a check that downloads each 0.6.2 package from crates.io, verifies its hash, and compares it with `engine/`. Any difference not listed in `engine/CHANGES.md` fails the check. It runs in CI on every pull request.
+
+```bash
+bash scripts/ci/check-engine-pin.sh
+```
+
+## What this means for you
+
+- SiafuDB's query behavior is the behavior of the 0.6.2 baseline plus SiafuDB's recorded changes. Upstream release notes after 0.6.2 do not describe SiafuDB.
+- Describe the engine as "a fork of GrafeoDB 0.6.2", not as "built on Grafeo".
+- Report engine bugs to SiafuDB, not upstream.
