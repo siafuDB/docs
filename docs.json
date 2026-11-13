@@ -66,7 +66,9 @@
             "pages": [
               "governance/contributing",
               "governance/roadmap",
-              "governance/foundation"
+              "governance/foundation",
+              "governance/engine-fork",
+              "governance/stack-and-phases"
             ]
           }
         ]

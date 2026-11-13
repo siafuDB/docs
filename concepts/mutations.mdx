@@ -1,28 +1,47 @@
 ---
 title: "Mutations"
-description: "The atomic unit of graph change — what gets synced, signed, and logged."
+description: "The atomic unit of graph change: what gets signed, synced, and logged."
+keywords: ["mutation", "op", "sync", "change log", "GSP"]
 ---
 
-A **Mutation** is the atomic unit of graph change in SiafuDB. Every write produces one or more mutations. Mutations are the currency of the Graph Sync Protocol — they are what gets logged, shipped, transformed, and applied on the receiving end.
+A **mutation** is the atomic unit of graph change in SiafuDB. Every write produces one or more mutations. Mutations are what the Graph Sync Protocol signs, ships, and applies on the receiving device.
 
 ## Shape
 
-A mutation carries:
+On the wire, a mutation is a signed **op**. An op carries:
 
-- A **UUID** — unique identifier.
-- A **source identity** — who authored this change.
-- An **operation type** — `vertex-create`, `vertex-update`, `vertex-delete`, `edge-create`, `edge-update`, `edge-delete`.
-- A **target** — the vertex or edge being changed.
-- A **payload** — the new state (or the diff).
-- A **vector clock** — for causal ordering across fragments.
-- An optional **cryptographic signature** — for provenance.
+- A **content id**: the hash of the op's bytes. It is not a UUID, so any device can check it.
+- An **author**: the identity that signed the op.
+- A **fragment id**: the fragment the op belongs to.
+- A **sequence number** and the id of the author's **previous op**. Together they form one chain per author, so a missing or reordered op is detectable.
+- A **hybrid logical clock** value, which orders concurrent changes.
+- **Dependencies**: the ops the writer had already applied.
+- A **payload**: the change itself.
+- One or more **signatures**, each tagged with its algorithm.
+
+The planned payload operations are `vertex-create`, `vertex-update`, `vertex-delete`, `edge-create`, `edge-update`, and `edge-delete`. The payload schema is not defined in wire format v0.
+
+See [Mutation format](/spec/mutation-format) for the fields and rules, and [Conflict resolution](/spec/conflict-resolution) for how concurrent mutations are ordered.
 
 ## Batches
 
-Mutations group into atomic `MutationBatch` structures. A batch applies all-or-nothing. Within a batch, causal ordering is preserved. Across batches, vector clocks determine ordering.
+Mutations can be grouped into a batch, which is signed as a unit. The batch signature covers the sender, the set of ops, and their order, so a relay cannot split or reorder a batch without detection. Each op in a batch keeps its own signatures.
 
-## Change Data Capture
+## How mutations are captured
 
-The engine emits mutations through Change Data Capture (CDC) — this is what GrafeoDB gives SiafuDB for free. CDC is the hook the sync engine listens on. Every committed mutation becomes a candidate for propagation.
+<Warning>
+  Capture is not finished. Read this section before you rely on sync.
+</Warning>
 
-See [02 — Graph Sync Protocol](/research/02-graph-sync-protocol) for the full mutation model and conflict-resolution rules.
+Today the engine records each write in an in-memory change log as the query text plus its bound parameters. This is enough to replay writes between two instances in one process. It is not a signed mutation, and the log does not survive a restart.
+
+The target is structured capture: each write becomes a signed op with a defined payload, identical on every platform. Two sources are under evaluation:
+
+- **Engine change data capture.** The engine can emit a change event per created, updated, or deleted vertex and edge.
+- **A structured write API.** Writes go through typed calls that produce ops directly.
+
+Which one becomes the supported path is undecided.
+
+## Derived data
+
+Some data leaves a fragment in a reduced form, for example with personal fields removed. A reduced mutation is a different object from the original: it has different bytes, a different id, and cannot carry the original signature. It is a separate, derived artefact, signed by the device that produced it.
