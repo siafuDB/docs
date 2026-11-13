@@ -1,0 +1,47 @@
+---
+title: "Stack and phases"
+description: "The languages SiafuDB maintains, which platforms come first, and what each build phase delivers."
+keywords: ["stack", "roadmap", "phases", "web", "PWA", "Swift", "Kotlin", "Node"]
+---
+
+This page records which technologies SiafuDB maintains and the order in which platforms are built. It was decided on 13 November 2026 and is recorded as ADR-0002 in the repository.
+
+## Stack
+
+| Area                 | Choice                                                                                     |
+| -------------------- | ------------------------------------------------------------------------------------------ |
+| Languages maintained | Rust, TypeScript, Astro                                                                    |
+| Native apps          | Swift and Kotlin bindings generated from the Rust core with UniFFI                         |
+| Not used             | React Native and Expo native modules. They would add a language and a runtime to maintain. |
+| JavaScript tooling   | Node 24 or later                                                                           |
+| Server and relay     | Rust                                                                                       |
+| Documentation        | Mintlify                                                                                   |
+
+## Web first
+
+Most SiafuDB applications ship as progressive web apps while native apps are in development. The browser build is therefore the first deliverable: the engine compiled to WebAssembly, a TypeScript API, encrypted persistence in the browser, and key handling through WebCrypto.
+
+## Phases
+
+| Phase | Deliverable                                                                                     | Done when                                                       |
+| ----- | ----------------------------------------------------------------------------------------------- | --------------------------------------------------------------- |
+| 0     | Engine fork pinned, decisions recorded, Node 24 baseline                                        | Complete                                                        |
+| 1     | Browser package, storage layer with encryption, signed op format, Swift and Kotlin bindings, CI | Tests pass on Node 24 and headless Chromium                     |
+| 2     | Relay and sync in the browser for a personal fragment, offline through a service worker         | Two browsers converge through a relay that sees only ciphertext |
+| 3     | iOS and Android apps on the bindings                                                            | Smoke tests pass on real devices                                |
+
+## Phase 1 status
+
+<Note>
+  Nothing in phase 1 is published to a package registry yet.
+</Note>
+
+| Piece                            | State                                                                                                                                      |
+| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| Browser package (`@siafudb/web`) | Built. Unit tests and headless Chromium tests pass, including encrypted persistence across a page reload. Not tested in Safari or Firefox. |
+| Signed op format (`gsp-wire`)    | Built, with tests. See [Mutation format](/spec/mutation-format).                                                                           |
+| Storage layer (`siafudb-store`)  | Built, with crash-injection tests. Not yet merged into the main branch.                                                                    |
+| Swift and Kotlin bindings        | Generated. The iOS and Android build scripts have not been run, and nothing has run on a device.                                           |
+| Astro PWA demo                   | Not started.                                                                                                                               |
+
+See [Engine fork and pinning](/governance/engine-fork) for the engine decision.

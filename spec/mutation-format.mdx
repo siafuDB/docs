@@ -1,38 +1,97 @@
 ---
-title: "Mutation Format"
-description: "Wire format for a Mutation and MutationBatch — fields, encoding, signatures."
+title: "Mutation format"
+description: "Wire format v0 for a signed op and a batch: fields, encoding, ids, signatures, and what a relay sees."
+keywords: ["mutation", "op", "wire format", "CBOR", "signature", "GSP"]
 ---
 
-The `Mutation` is the atomic unit that travels on the wire. This document defines the normative wire format. See [Mutations](/concepts/mutations) for the conceptual overview.
+A mutation travels on the wire as a signed **op**. This page summarises wire format v0. See [Mutations](/concepts/mutations) for the concepts.
 
 ## Status
 
-**Draft.** Fields listed here are the expected shape pulled from [02 — Graph Sync Protocol](/research/02-graph-sync-protocol). Breaking changes still possible before 0.1.0.
+**Draft, v0.** The format on this page is implemented in the `gsp-wire` crate, which is not published yet. It replaces the earlier draft on this page. Breaking changes are still possible before 0.1.0.
 
-## Fields
+<Warning>
+  The earlier draft specified UUIDv7 ids, a single optional Ed25519 signature, and a vector clock per mutation. None of those are part of v0. If you built against the earlier draft, treat it as withdrawn.
+</Warning>
 
-| Field       | Type        | Required | Notes                                                                                                    |
-| ----------- | ----------- | -------- | -------------------------------------------------------------------------------------------------------- |
-| `id`        | UUIDv7      | yes      | Time-ordered for natural sort                                                                            |
-| `source`    | string      | yes      | Identity URI of the author                                                                               |
-| `op`        | enum        | yes      | `vertex-create` \| `vertex-update` \| `vertex-delete` \| `edge-create` \| `edge-update` \| `edge-delete` |
-| `target`    | GraphRef    | yes      | Vertex or edge being changed                                                                             |
-| `payload`   | CBOR        | yes      | New state or diff                                                                                        |
-| `clock`     | VectorClock | yes      | Causal metadata                                                                                          |
-| `signature` | bytes       | optional | Ed25519 over the canonical CBOR encoding                                                                 |
+## Op fields
+
+| Field         | Type                 | Notes                                                                                                       |
+| ------------- | -------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `format`      | uint                 | Envelope version. `0` in v0. Changes only for structural changes, never for a new algorithm.                |
+| `hash_alg`    | uint                 | Registry id of the hash used for this op's id.                                                              |
+| `fragment_id` | bytes                | The fragment the op belongs to. The signature covers it, so an op cannot be replayed into another fragment. |
+| `author`      | multihash            | Id of the author's key-log genesis entry.                                                                   |
+| `seq`         | uint                 | Position in the author's chain. Starts at 1.                                                                |
+| `prev`        | multihash or null    | Id of the author's op at `seq - 1`. Null only when `seq` is 1.                                              |
+| `hlc`         | `[wall_ms, counter]` | Hybrid logical clock. Orders concurrent writes.                                                             |
+| `deps`        | list of multihash    | Heads the writer had applied when it wrote the op. This is the causality record. At most 64.                |
+| `payload`     | any                  | The change itself. Opaque to the wire layer in v0.                                                          |
+
+## Ids
+
+An op's id is the hash of its canonical bytes, with the hash algorithm inside the id. Ids are not UUIDs. A receiver recomputes the id from the bytes it received and never by re-encoding.
 
 ## Encoding
 
-Canonical CBOR (RFC 8949 deterministic encoding). Signatures cover the bytes of the canonical form, so any re-serialisation preserves the signature.
+Deterministic CBOR (RFC 8949, section 4.2). Map keys are text strings only. A decoder re-encodes what it read and rejects input whose bytes differ.
+
+## Signatures
+
+An op carries a list of signatures. Each entry names its algorithm by registry id.
+
+- A signature covers a domain label (`gsp/v0/op`), the fragment id, and the op id. The parts are length-prefixed.
+- An author's policy sets which algorithms are required. A hybrid author needs both Ed25519 and ML-DSA-65. Removing either signature makes the op invalid.
+- Policy comes from the author's key log, not from the op. The key log is a signed, hash-chained list of add-key, revoke-key, and set-policy entries.
+- A key revoked at `seq` N stays valid for ops at or below N and is rejected above N.
+
+Verification returns one of three verdicts:
+
+| Verdict      | Meaning                                                                                 | Applied?                        |
+| ------------ | --------------------------------------------------------------------------------------- | ------------------------------- |
+| Valid        | Structure, chain, and every required signature check out.                               | Yes                             |
+| Unverifiable | An unknown algorithm or format, an unknown author or key, or a timestamp too far ahead. | No. Retained for a later retry. |
+| Invalid      | Tampered, wrongly signed, or structurally wrong.                                        | No                              |
+
+## Algorithm registries
+
+Ids are numeric and append-only.
+
+| Registry     | Id  | Name               | In v0                |
+| ------------ | --- | ------------------ | -------------------- |
+| Signature    | 1   | Ed25519            | Implemented          |
+| Signature    | 2   | ML-DSA-65          | Implemented          |
+| Hash         | 1   | BLAKE3-256         | Implemented, default |
+| Hash         | 2   | SHA3-256           | Implemented          |
+| Hash         | 3   | SHA-256            | Registered only      |
+| Key exchange | 1   | X25519             | Registered only      |
+| Key exchange | 2   | ML-KEM-768         | Registered only      |
+| Encryption   | 1   | XChaCha20-Poly1305 | Implemented          |
+| Encryption   | 2   | AES-256-GCM        | Registered only      |
+
+## Equivocation
+
+Two different valid ops with the same author and `seq` are an equivocation. The pair is a proof that a third party can check.
 
 ## Batches
 
-A `MutationBatch` wraps an ordered list of mutations plus a batch-level clock. Batches apply all-or-nothing. Within a batch, ordering is preserved; across batches, per-mutation clocks determine ordering.
+A batch is a signed list of complete signed ops, at most 1024. The batch signature authenticates the sender, the set, and its order as a unit. It does not replace each op's own signatures: a valid batch can still contain ops that are not valid.
+
+## What a relay sees
+
+Ops are signed first, then encrypted with XChaCha20-Poly1305. A relay sees ciphertext and an opaque header. It does not see the author, the payload, or the signatures.
+
+## Known limits of v0
+
+- The payload has no schema yet. The operation types in [Mutations](/concepts/mutations) are the planned payload schema.
+- The handshake and hybrid key exchange are registered but not implemented.
+- The ML-DSA implementation is a 0.1 release and has not been audited. The hybrid rule with Ed25519 is the mitigation.
+- Key-log forks have no proof format or resolution rule.
 
 ## Open questions
 
-- Compression of payloads for large binary vertices (consider zstd framing).
-- Signature aggregation for batches with a single author.
-- Schema versioning inside the payload — embed a schema hash, or trust the receiver's schema registry?
+- **Author identity.** v0 identifies an author by the hash of its key-log genesis entry, not by a DID. Binding a DID to that id is undecided.
+- Compression of large payloads.
+- Schema versioning inside the payload.
 
-These are tracked in the [Decision Log](/research/03-decision-log).
+These are tracked in the [Decision log](/research/03-decision-log).
