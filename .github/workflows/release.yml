@@ -1,0 +1,25 @@
+# Trunk release: every merge to main is tagged from the merged PR title
+# (feat: minor, anything else patch). Replaces staging-version.yml; the
+# versioning policy lives in nyuchi/.github (AGENTS.md, Versioning).
+name: Release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: "Override the bump: patch, minor or major. Empty decides from the PR title."
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    permissions:
+      contents: write
+    uses: nyuchi/.github/.github/workflows/reusable-trunk-release.yml@2c325ee3106eea96400cfd14c920249beb8097ea # v0.44.0
+    with:
+      bump: ${{ inputs.bump || '' }}
