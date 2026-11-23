@@ -1,71 +1,92 @@
 ---
 title: "Quickstart"
-description: "Install SiafuDB, open a fragment, and run your first query in under five minutes."
+description: "Install SiafuDB, open a database, and run your first query. In the browser or in Rust."
 ---
 
-Five minutes from `cargo add` to a working fragment. This guide assumes you have a Rust toolchain (1.75+) and a working editor.
+SiafuDB is published for the browser (npm) and for Rust (crates.io). It is
+pre-release software: the API will change before 1.0.
 
-## Install
+## In the browser
 
-Add SiafuDB to your `Cargo.toml`:
+The browser package runs the graph engine as WebAssembly in a Worker and
+keeps the data encrypted in the browser's storage. It needs a secure context
+(`https://` or `localhost`) and Node 24 for tooling.
 
-```toml
-[dependencies]
-siafudb = "0.1"
+```sh
+npm install @bundu/siafudb-web
 ```
 
+```ts
+import { SiafuDB } from "@bundu/siafudb-web";
+
+const db = await SiafuDB.open("notes");
+
+await db.execute("CREATE (:Note {title: $t})", { t: "first note" });
+
+const { columns, rows } = await db.query("MATCH (n:Note) RETURN n.title");
+console.log(columns, rows); // ["n.title"] [["first note"]]
+```
+
+Always pass values as parameters (`$t`), never by building query text.
+
+With Vite, add this so the Worker and the WebAssembly file are bundled:
+
+```ts
+// vite.config.ts
+import { defineConfig } from "vite";
+
+export default defineConfig({
+  build: { target: "esnext" },
+  worker: { format: "es" },
+  optimizeDeps: { exclude: ["@bundu/siafudb-web"] },
+});
+```
+
+In an Astro project, put the same settings under `vite:` in
+`astro.config.mjs` and run the component client-only
+(`client:only`), never during server rendering.
+
+The data survives a page reload. One tab can have a given database open at a
+time; a second tab waits, or fails fast if you ask it to.
+
 <Note>
-During the alpha, pull from the workspace path: `siafudb = { git = "https://github.com/nyuchi-africa/siafudb", branch = "main" }`.
+  Tested in Chromium. Safari and Firefox have not been tested yet.
 </Note>
 
-## Open a fragment
+## In Rust
+
+Requires rustc 1.99 or newer.
+
+```sh
+cargo add siafudb-core serde_json
+```
 
 ```rust
-use siafudb::{Siafu, FragmentKind};
+use serde_json::json;
+use siafudb_core::SiafuDB;
 
-fn main() -> siafudb::Result<()> {
-    let mut db = Siafu::open("./my-fragment.siafu", FragmentKind::Personal)?;
-    println!("Opened {} vertices", db.vertex_count());
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let db = SiafuDB::open("./notes.siafu")?;
+
+    let mut params = serde_json::Map::new();
+    params.insert("t".into(), json!("first note"));
+    db.execute_with_params("CREATE (:Note {title: $t})", params)?;
+
+    let result = db.query("MATCH (n:Note) RETURN n.title")?;
+    println!("{:?} {:?}", result.columns, result.rows);
     Ok(())
 }
 ```
 
-A `.siafu` file is a single-file fragment. The `FragmentKind::Personal` tag marks this as a personal fragment — all writes default to Authoritative here.
-
-## Declare a schema
-
-```rust
-db.execute(r#"
-    CREATE NODE TABLE Person(
-        name STRING,
-        email STRING,
-        PRIMARY KEY (email)
-    );
-"#)?;
-```
-
-See [Graph Model](/concepts/graph-model) for the full schema language.
-
-## Insert and query
-
-```rust
-db.execute(r#"
-    CREATE (:Person { name: 'Bryan', email: 'bryan@nyuchi.com' });
-"#)?;
-
-let rows = db.query("MATCH (p:Person) RETURN p.name, p.email")?;
-for row in rows {
-    println!("{:?}", row);
-}
-```
+`SiafuDB::in_memory()` opens a database that keeps nothing on disk.
 
 ## What's next
 
 <CardGroup cols={2}>
   <Card title="Run your first query" icon="code" href="/guides/first-query">
-    Cypher basics against the fragment you just created.
+    Cypher basics against the database you just created.
   </Card>
-  <Card title="Connect two fragments" icon="arrows-rotate" href="/guides/first-sync">
-    Stand up a second fragment and sync with GSPA.
+  <Card title="Your first sync" icon="arrows-rotate" href="/guides/first-sync">
+    Keep two browser windows in step through a relay.
   </Card>
 </CardGroup>

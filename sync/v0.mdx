@@ -1,0 +1,117 @@
+---
+title: "Sync v0: what ships today"
+description: "Devices of one person stay in step through a relay that stores only ciphertext. What it guarantees, what it does not, and how to run it."
+---
+
+<Note>
+  This page describes what is released and tested. The other pages in this
+  section describe the design direction (transports, transforms, network
+  fragments); most of that is not built yet. When the two disagree, this page
+  is the one that matches the code.
+</Note>
+
+Sync v0 does one thing: **the devices of one person keep the same data, also
+after working offline, and the server in the middle cannot read it.** It
+shipped in `@bundu/siafudb-web` 0.4.0 for the browser. The protocol and the
+reference relay are in
+[siafuDB/siafudb-gsp](https://github.com/siafuDB/siafudb-gsp).
+
+## How it works
+
+1. The first device creates a sync group and gets a **pairing code**.
+2. Every other device joins with that code.
+3. Each device keeps its own full copy of the database. Writes are signed and
+   encrypted on the device, sent to a relay, and picked up by the other
+   devices.
+4. A device that was offline uploads what it wrote and downloads what it
+   missed when it is back.
+
+To try it, follow [Your first sync](/guides/first-sync).
+
+## What the relay sees
+
+Everything sent is encrypted and signed on the device with keys derived from
+the pairing code. The relay stores ciphertext and hands it back.
+
+| The relay can see                         | The relay cannot see                        |
+| ----------------------------------------- | ------------------------------------------- |
+| A random id for the group                 | Node or edge contents                       |
+| How many items there are, and their sizes | Labels, property names or values            |
+| When devices upload and download          | Which device wrote what                     |
+| Client network addresses                  | The pairing code or any key derived from it |
+
+The relay can withhold or delay items. It cannot forge or alter them without
+the devices noticing.
+
+## How conflicts are settled
+
+Two devices can change the same thing while apart. When they meet again:
+
+- The later write wins, per property and per label.
+- A delete beats any other change to the same node or edge.
+- Deleting a node removes its edges on every device.
+
+The result is the same on every device, whatever order the changes arrive in.
+
+## What was tested
+
+- The protocol crates: 186 tests, including random delivery orders, dropped
+  and duplicated items, tampered ciphertext, forged signatures and replayed
+  items.
+- The browser package, in headless Chromium against the real relay: joining,
+  concurrent edits, deletes, offline writes, page reload, a device with a
+  wrong clock, a device restored from a backup, a relay that lost its data, a
+  wrong pairing code, and a check that no plaintext reaches the relay's files.
+- One independent security review. Its findings were fixed and each has a
+  regression test.
+
+**Not tested or not done:** Safari and Firefox; iOS and Android; large
+databases; an external audit.
+
+## Limits of v0
+
+- **The pairing code is the only secret, and it does not change.** Anyone who
+  has it is a full member of the group. A device cannot be removed: to
+  exclude one, create a new group and pair the others again.
+- **Personal data only.** Sharing between people, permissions per device and
+  network fragments are not in v0.
+- **History only grows.** Deletes are remembered forever so that they keep
+  winning. Nothing is compacted, on the devices or on the relay.
+- **A new device downloads the whole history.** A relay that loses its data
+  loses that history; devices that were up to date carry on, and a new group
+  is needed to add devices after that.
+- **At most 64 devices per group.**
+- **Clocks matter.** A device whose clock is more than 24 hours ahead cannot
+  get its writes accepted until the clock is fixed.
+- **One write can carry at most 64 KiB.** Larger writes are split; a single
+  property value over that size is not synced.
+- **Not everything syncs.** Nodes, edges, labels and properties do. Schema,
+  indexes and named graphs do not.
+- **The download is larger.** The browser package is about 1.40 MB gzipped
+  with sync, against 1.16 MB before.
+
+## Running a relay
+
+There is no hosted relay yet. You run the reference relay yourself, behind
+TLS:
+
+```sh
+git clone https://github.com/siafuDB/siafudb-gsp
+cd siafudb-gsp
+cargo build --release -p gsp-relay
+./target/release/gsp-relay --addr 127.0.0.1:8787 --data-dir /var/lib/gsp-relay
+```
+
+A relay that can be reached from the internet should set a registration
+secret (`GSP_RELAY_REGISTRATION_TOKEN`), so that only people who hold it can
+create new groups. Its
+[README](https://github.com/siafuDB/siafudb-gsp/tree/main/crates/gsp-relay)
+lists every setting and what the relay does under load.
+
+## The specification
+
+- [Sync v0](https://github.com/siafuDB/siafudb-gsp/blob/main/docs/SYNC-V0.md):
+  pairing, the change format, merge rules, the relay protocol, limits.
+- [Wire format v0](https://github.com/siafuDB/siafudb-gsp/blob/main/docs/WIRE-V0.md):
+  encoding, signatures, key logs, sealed items. See also
+  [Mutation format](/spec/mutation-format).
