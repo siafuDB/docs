@@ -50,7 +50,9 @@ The data survives a page reload. One tab can have a given database open at a
 time; a second tab waits, or fails fast if you ask it to.
 
 <Note>
-  Tested in Chromium. Safari and Firefox have not been tested yet.
+  Tested in Chromium, Firefox and WebKit (the engine behind Safari). Safari
+  itself and mobile browsers have not been tested. In 0.4.0, Safari's private
+  browsing mode cannot open a database; that is fixed for the next release.
 </Note>
 
 ## In Rust

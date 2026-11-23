@@ -58,15 +58,24 @@ The result is the same on every device, whatever order the changes arrive in.
 - The protocol crates: 186 tests, including random delivery orders, dropped
   and duplicated items, tampered ciphertext, forged signatures and replayed
   items.
-- The browser package, in headless Chromium against the real relay: joining,
-  concurrent edits, deletes, offline writes, page reload, a device with a
-  wrong clock, a device restored from a backup, a relay that lost its data, a
-  wrong pairing code, and a check that no plaintext reaches the relay's files.
+- The browser package, against the real relay: joining, concurrent edits,
+  deletes, offline writes, page reload, a device with a wrong clock, a device
+  restored from a backup, a relay that lost its data, a wrong pairing code,
+  and a check that no plaintext reaches the relay's files. These pass in
+  Chromium, Firefox and WebKit (the engine behind Safari).
 - One independent security review. Its findings were fixed and each has a
   regression test.
 
-**Not tested or not done:** Safari and Firefox; iOS and Android; large
-databases; an external audit.
+**Not tested or not done:** Safari itself and mobile browsers (the WebKit
+runs use a test build on Linux); iOS and Android apps; large databases; an
+external audit.
+
+<Note>
+  In 0.4.0, opening a database fails where the browser offers its private file
+  storage but refuses to use it, for example Safari in private browsing. The
+  fix, which falls back to IndexedDB, is merged and will be in the next
+  release.
+</Note>
 
 ## Limits of v0
 
