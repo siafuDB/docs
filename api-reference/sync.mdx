@@ -1,80 +1,108 @@
 ---
 title: "Sync API"
-description: "GSPA and GSPN builders, CDC hooks, transforms."
+description: "db.sync in the browser package, and change capture in siafudb-core."
 ---
 
-The sync layer lives in `siafudb-sync` and is re-exported under `siafudb::sync`.
+This page documents the sync API that is released. For what it guarantees and
+its limits, see [Sync v0](/sync/v0).
 
-## GSPA
+<Note>
+  The transport builders and transforms described under
+  [GSPA](/sync/gspa) and [GSPN](/sync/gspn) are design direction. They are
+  not implemented, and no released API offers them.
+</Note>
+
+## Browser: `db.sync`
+
+Available on every database opened with `@bundu/siafudb-web` 0.4.0 or later.
+
+### Setting up
+
+| Call                                               | What it does                                                                             |
+| -------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| `db.sync.create({ relayUrl, registrationToken? })` | Starts a sync group. Returns the pairing code. Data already in the database is uploaded. |
+| `db.sync.join({ relayUrl, code })`                 | Joins a group with a pairing code.                                                       |
+| `db.sync.pairingCode()`                            | The code again, to add another device.                                                   |
+| `db.sync.leave()`                                  | Forgets the group on this device. The data stays.                                        |
+
+`relayUrl` must be `https://`. Plain `http://` is accepted for `localhost`,
+`127.0.0.1` and `[::1]` only.
+
+`registrationToken` is for a relay that only lets holders of its registration
+secret create groups. Only `create` needs it. It is kept in memory and never
+stored or logged.
+
+After `create` or `join`, sync runs by itself and resumes on the next `open()`.
+
+### Running
+
+| Call                                 | What it does                                                                                      |
+| ------------------------------------ | ------------------------------------------------------------------------------------------------- |
+| `db.sync.status()`                   | The current state, see below.                                                                     |
+| `db.sync.syncNow()`                  | Uploads and downloads now. Rejects if the relay cannot be reached.                                |
+| `db.sync.onRemoteChange(listener)`   | Calls `listener` when another device's writes were applied. Returns a function that unsubscribes. |
+| `db.sync.stop()` / `db.sync.start()` | Pauses and resumes talking to the relay. Remembered across reloads.                               |
+| `db.sync.rejoinAsNewDevice()`        | Gives this device a new identity in the group. Only when `status().needsRejoin` is true.          |
+
+Writes are uploaded shortly after they commit. Writes made offline or while
+stopped are queued in the database, survive reloads, and go out when the relay
+can be reached again.
+
+### Status
+
+| Field                                                   | Meaning                                                                                                                                         |
+| ------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| `enabled`                                               | The database is in a sync group.                                                                                                                |
+| `running`, `connected`                                  | Sync is not stopped; the last exchange with the relay worked.                                                                                   |
+| `pendingUploads`                                        | Writes waiting to be uploaded.                                                                                                                  |
+| `pendingDownloads`                                      | Received changes that cannot be applied yet.                                                                                                    |
+| `catchingUp`                                            | The device is reading the relay before it uploads. Normal for a moment after `open()`.                                                          |
+| `needsRejoin`                                           | The device was restored from an older copy and then wrote before it could read the relay. Call `rejoinAsNewDevice()`. Nothing it wrote is lost. |
+| `needsResync`                                           | Too many received changes were waiting; the relay's log is being read again.                                                                    |
+| `relayResets`                                           | How often the relay was found to have lost its data.                                                                                            |
+| `deviceList`                                            | One entry per device: `{ id, own, appliedSeq, pending, gap, clockLeadMs, equivocated }`.                                                        |
+| `notUploaded`, `notApplied`, `lastProblem`, `lastError` | Changes that could not be sent or applied, and why.                                                                                             |
+
+In `deviceList`, `clockLeadMs > 0` means that device's writes were ahead of
+this device's clock: they are held if under 24 hours and refused if over, so
+one of the two clocks is wrong. `gap` means the device is stuck until a
+resync. `equivocated` means its storage was rolled back at some point.
+
+### Reserved property
+
+Synced nodes and edges carry a property `_gid`, their id across devices. It
+shows up in results that return whole nodes. Do not write it.
+
+## Rust: change capture in `siafudb-core`
+
+`siafudb-core` 0.4.0 can report what local writes did, and apply changes that
+came from another device. This is the engine half of sync; it knows nothing
+about relays or encryption.
 
 ```rust
-use siafudb::sync::Gspa;
+use siafudb_core::{GraphChange, SiafuDB};
 
-let gspa = Gspa::http()
-    .from(&db)
-    .to("https://platform.example.com/sync")
-    .transform("StripPII")
-    .auth_bearer(token)
-    .build()?;
+let a = SiafuDB::in_memory()?;
+let b = SiafuDB::in_memory()?;
+a.enable_change_capture()?;
 
-gspa.start().await?;
+a.execute("CREATE (:Note {title: 'hello'})")?;
+
+let changes: Vec<GraphChange> = a.take_changes()?;
+b.apply_changes(&changes)?;
 ```
 
-Transport variants: `Gspa::http()`, `Gspa::grpc()`, `Gspa::websocket()`, `Gspa::kafka()`, `Gspa::local_tcp()`, `Gspa::in_process()`.
+| Call                      | What it does                                                                                               |
+| ------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| `enable_change_capture()` | Turns capture on. Off by default.                                                                          |
+| `take_changes()`          | Everything local writes did since the last call, in commit order.                                          |
+| `apply_changes(&changes)` | Applies changes from elsewhere. They are not captured again. Applying the same list twice changes nothing. |
+| `take_graph_as_changes()` | The whole current graph as changes, for data that existed before capture was on.                           |
 
-See [GSPA](/sync/gspa).
+Capture sees every committed write, including writes made through Cypher and
+through the key-value and document helpers. It does not see schema changes,
+indexes or named graphs.
 
-## GSPN
-
-```rust
-use siafudb::sync::Gspn;
-
-let gspn = Gspn::new()
-    .from(&db)
-    .to_synapse("synapse://platform-ingress")
-    .build()?;
-
-gspn.start().await?;
-```
-
-See [GSPN](/sync/gspn).
-
-## CDC hook
-
-If you need to observe mutations without shipping them, subscribe directly:
-
-```rust
-let mut cdc = db.cdc_subscribe();
-while let Some(mutation) = cdc.recv().await {
-    tracing::info!(?mutation, "mutation committed");
-}
-```
-
-## Transforms
-
-Built-in transforms:
-
-| Transform       | Effect                                           |
-| --------------- | ------------------------------------------------ |
-| `StripPII`      | Removes properties marked `@pii` in the schema   |
-| `FilterByLabel` | Drops mutations whose target label doesn't match |
-| `Anonymise`     | Replaces identities with stable pseudonyms       |
-| `Aggregate`     | Rolls up events into summary vertices            |
-
-Custom transforms implement the `Transform` trait:
-
-```rust
-impl Transform for MyTransform {
-    fn apply(&self, m: Mutation) -> Option<Mutation> { ... }
-}
-```
-
-## Conflict strategy
-
-Set per-schema or per-fragment:
-
-```rust
-db.set_conflict_strategy(Label::new("Message"), Strategy::MergeProperties)?;
-```
-
-See [Conflict Resolution](/spec/conflict-resolution).
+The crate that connects this to the sync protocol (`siafudb-gsp`) is in the
+repository and is not published yet; the browser package is the supported way
+to use sync today.
