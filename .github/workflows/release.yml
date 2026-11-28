@@ -20,6 +20,7 @@ jobs:
   release:
     permissions:
       contents: write
-    uses: nyuchi/.github/.github/workflows/reusable-trunk-release.yml@2c325ee3106eea96400cfd14c920249beb8097ea # v0.44.0
+      pull-requests: read
+    uses: nyuchi/.github/.github/workflows/reusable-trunk-release.yml@97ccc98b747d6c84d55f3310c4a8c1d3b16d181c # main, 2026-11-28 (trunk channel fix)
     with:
       bump: ${{ inputs.bump || '' }}
