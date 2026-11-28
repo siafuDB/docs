@@ -5,3 +5,8 @@
 # Draft content
 drafts/
 *.draft.mdx
+
+# Repository community files: not docs pages (their autolinks are not valid MDX)
+AGENTS.md
+CODE_OF_CONDUCT.md
+SECURITY.md
