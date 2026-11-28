@@ -15,10 +15,18 @@
   "type": "module",
   "packageManager": "npm@11.12.1",
   "devDependencies": {
-    "mint": "4.2.971",
+    "mint": "^4.3.84",
     "vite-plus": "^1.0.0"
   },
   "engines": {
     "node": ">=18"
+  },
+  "overrides": {
+    "@mintlify/cli": {
+      "sharp": "^0.35.5"
+    },
+    "@mintlify/package-builder": {
+      "js-yaml": "^4.3.2"
+    }
   }
 }

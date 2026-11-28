@@ -30,18 +30,22 @@ Most SiafuDB applications ship as progressive web apps while native apps are in 
 | 2     | Relay and sync in the browser for a personal fragment, offline through a service worker         | Two browsers converge through a relay that sees only ciphertext |
 | 3     | iOS and Android apps on the bindings                                                            | Smoke tests pass on real devices                                |
 
-## Phase 1 status
+## Status
 
 <Note>
-  Nothing in phase 1 is published to a package registry yet.
+  Released on 13 November 2026: `@bundu/siafudb-web` 0.4.0 on npm and
+  `siafudb-core` 0.4.0 on crates.io.
 </Note>
 
-| Piece                            | State                                                                                                                                      |
-| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| Browser package (`@siafudb/web`) | Built. Unit tests and headless Chromium tests pass, including encrypted persistence across a page reload. Not tested in Safari or Firefox. |
-| Signed op format (`gsp-wire`)    | Built, with tests. See [Mutation format](/spec/mutation-format).                                                                           |
-| Storage layer (`siafudb-store`)  | Built, with crash-injection tests. Not yet merged into the main branch.                                                                    |
-| Swift and Kotlin bindings        | Generated. The iOS and Android build scripts have not been run, and nothing has run on a device.                                           |
-| Astro PWA demo                   | Not started.                                                                                                                               |
+| Piece                                  | State                                                                                                                                                                                      |
+| -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Browser package (`@bundu/siafudb-web`) | Released. Unit tests and headless Chromium tests pass, including encrypted persistence across a page reload. The browser tests also pass in Firefox and WebKit; Safari itself is untested. |
+| Sync in the browser (phase 2)          | Released in 0.4.0. Two browsers converge through a relay that stores only ciphertext. See [Sync v0](/sync/v0).                                                                             |
+| Sync protocol and reference relay      | Built, with tests and one independent security review. Not audited. No hosted relay yet.                                                                                                   |
+| Signed op format (`gsp-wire`)          | Built, with tests. See [Mutation format](/spec/mutation-format).                                                                                                                           |
+| Storage layer (`siafudb-store`)        | Built, with crash-injection tests. Not yet used by the core.                                                                                                                               |
+| Swift and Kotlin bindings              | Generated. The iOS and Android build scripts have not been run, and nothing has run on a device.                                                                                           |
+| Offline app shell (service worker)     | Not part of the database. Offline writes queue locally; caching the app shell is the app's job.                                                                                            |
+| Astro PWA demo                         | Not started.                                                                                                                                                                               |
 
 See [Engine fork and pinning](/governance/engine-fork) for the engine decision.
