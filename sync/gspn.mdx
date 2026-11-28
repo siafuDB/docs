@@ -3,20 +3,26 @@ title: "GSPN — Graph Sync with NTL"
 description: "Neural signal transport for the Graph Sync Protocol. Synapses, signals, learned routing."
 ---
 
+<Note>
+  GSPN is design direction. It is not implemented, and no released package
+  offers a GSPN API. It depends on NTL, a separate project with its own
+  documentation. What ships is [Sync v0](/sync/v0).
+</Note>
+
 GSPN is the neural transport mode for the Graph Sync Protocol. Instead of channels, GSPN emits **signals** through **synapses** — adaptive junctions provided by the [Nyuchi Transfer Layer (NTL)](https://ntl.nyuchi.com).
 
 Where GSPA is a pipe you configure, GSPN is a nervous system that learns. Synapses carry weights. Weights adapt with use. Routes emerge rather than being declared.
 
-## When to use GSPN
+## Where GSPN fits
 
-Reach for GSPN when:
+You cannot use GSPN today. The design aims it at deployments where:
 
 - Your deployment already has NTL available on the network.
 - You want transformations applied at the synapse level, not in the emitter.
 - Routing needs to adapt — frequently-travelled paths should strengthen; cold paths should decay.
 - You are operating in a dual-stack or IPv6-native environment where neural addresses replace sockets.
 
-If none of that applies, use GSPA.
+Where none of that applies, the design points to [GSPA](/sync/gspa), which is not implemented either.
 
 ## Shape
 
@@ -47,6 +53,6 @@ The emitter does not serialise for a specific destination. It hands the mutation
 
 GSPN is the SiafuDB-side binding to NTL. The protocol spec for signals, synapses, and the 12 principles that govern neural transport lives in the NTL docs. See [NTL — Neural Network Base Layer](https://ntl.nyuchi.com/research/03-neural-network-base-layer) and [NTL — Twelve Principles](https://ntl.nyuchi.com/research/05-twelve-principles).
 
-## Ships second
+## Planned second
 
-GSPN is the second transport to land. It depends on NTL reaching a stable release, on IPv6 availability across the deployment, and ideally on hardware support for neural operations. It is the long-term transport; GSPA is how we get there.
+GSPN is planned as the second transport. Neither transport has landed. It depends on NTL reaching a stable release, on IPv6 availability across the deployment, and ideally on hardware support for neural operations. It is the long-term transport; GSPA is how we get there.

@@ -3,55 +3,61 @@ title: "Graph Model"
 description: "The data model — labeled property graph, vertices and edges, typed schemas, RDF overlay."
 ---
 
-SiafuDB stores a **Labeled Property Graph (LPG)**. Every vertex has a label (its type) and a property bag. Every edge has a label (its relationship type), a direction, and an optional property bag. An RDF overlay is available for semantic-web workloads; both models share the same storage.
+<Note>
+  **Released:** the labelled property graph. Nodes have labels and properties,
+  edges have a type, a direction and properties, and you query them with
+  Cypher. `siafudb-core` 0.4.0 adds key-value and document helpers. **Design
+  direction:** declared schemas, per-vertex authority, the time-series and
+  vector access patterns, and the RDF overlay. SiafuDB does not offer these
+  today. SiafuDB is pre-release software.
+</Note>
+
+SiafuDB stores a **Labeled Property Graph (LPG)**. Every vertex has a label (its type) and a property bag. Every edge has a label (its relationship type), a direction, and an optional property bag. An RDF overlay for semantic-web workloads is part of the design and is not available through SiafuDB today.
 
 ## Vertex
 
 A vertex is a node in the graph. It carries:
 
-- A **label** — the type (`Person`, `Message`, `Pod`, `Device` ...).
-- A **property bag** — typed key-value pairs declared by the schema.
-- A **fragment-unique identifier** — stable across the life of this instance.
-- An **authority** — Authoritative, Referenced, or Local.
+- A **label**: the type (`Person`, `Message`, `Pod`, `Device` ...). A vertex can have more than one.
+- A **property bag**: key-value pairs. Today you set them freely. In the design, a schema declares them.
+- An **identifier**. A synced vertex also carries `_gid`, its id across devices.
+- An **authority**: Authoritative, Referenced, or Local. This is design direction. See [Authority](/concepts/authority).
 
 ## Edge
 
 An edge is a relationship between two vertices. Edges are directed. They carry:
 
-- A **label** — the relationship type (`KNOWS`, `SENT`, `REACTS_TO` ...).
-- An **optional property bag** — typed properties such as timestamps or weights.
+- A **label**: the relationship type (`KNOWS`, `SENT`, `REACTS_TO` ...).
+- An **optional property bag**: properties such as timestamps or weights.
 - A **FROM** and **TO** vertex reference.
 
-Edges are stored as direct pointers where possible, giving O(1) traversal — index-free adjacency. Rust's ownership model lets SiafuDB do this safely.
-
-## Schema
-
-Schemas are declared at creation and enforced at write time. This prevents the schema drift that destroys data quality across millions of devices syncing independently.
+You create both with Cypher. This works against the released packages:
 
 ```cypher
-CREATE NODE TABLE Person(
-  name STRING,
-  email STRING,
-  created_at TIMESTAMP,
-  PRIMARY KEY (email)
-);
-
-CREATE REL TABLE Knows(
-  FROM Person TO Person,
-  since TIMESTAMP
-);
+MATCH (a:Person {name: $a}), (b:Person {name: $b})
+CREATE (a)-[:KNOWS {since: $since}]->(b)
 ```
+
+See [Your first query](/guides/first-query) for the full walk-through.
+
+## Schema (design)
+
+Today SiafuDB has no schema. You do not declare labels or property types, and nothing checks them at write time.
+
+The design is that schemas are declared at creation and enforced at write time. The aim is to prevent schema drift across many devices that sync independently. The schema language is not decided. An earlier version of this page showed `CREATE NODE TABLE` statements. The engine rejects them, so do not use them.
 
 ## Convenience access patterns
 
 The same graph underneath, different APIs on top:
 
-| Pattern     | API                           | Underneath                       |
-| ----------- | ----------------------------- | -------------------------------- |
-| Graph       | Cypher / GQL                  | Native graph operations          |
-| Key-Value   | `kv_set()` / `kv_get()`       | `(:_KV {key, value})`            |
-| Document    | `doc_insert()` / `doc_find()` | Node with label = collection     |
-| Time-Series | `ts_append()` / `ts_range()`  | Timestamped nodes + `NEXT` edges |
-| Vector      | Similarity queries            | HNSW index on embeddings         |
+| Pattern     | API                                     | Underneath                               | Status                     |
+| ----------- | --------------------------------------- | ---------------------------------------- | -------------------------- |
+| Graph       | Cypher                                  | Native graph operations                  | Released                   |
+| Key-Value   | `kv_set()` / `kv_get()` / `kv_delete()` | `(:_KV {key, value})`                    | Released in `siafudb-core` |
+| Document    | `doc_insert()` / `doc_find()`           | Node with the label `_doc_<collection>`  | Released in `siafudb-core` |
+| Time-Series | Not designed yet                        | Timestamped nodes linked by `NEXT` edges | Design direction           |
+| Vector      | Not designed yet                        | An index on embeddings                   | Design direction           |
+
+The [Query API](/api-reference/query) documents the released helpers.
 
 See [01 — SiafuDB Architecture](/research/01-architecture#siafudb-replaces-sqlite) for the full rationale.

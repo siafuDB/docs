@@ -3,6 +3,16 @@ title: "Fragments"
 description: "A SiafuDB instance is a meaningful subset of a larger graph — a fragment."
 ---
 
+<Note>
+  **Released:** every database you open with `siafudb-core` 0.4.0 or
+  `@bundu/siafudb-web` 0.4.0 is a standalone local database. In Rust,
+  `db.fragment().kind` is always `FragmentKind::Local`, and `open` takes no
+  fragment argument. **Design direction:** Personal and Network fragments,
+  their separate keys, and per-vertex authority. The `Fragment`,
+  `FragmentKind` and `NodeAuthority` types exist in `siafudb-core`, but
+  nothing stores or enforces them yet. SiafuDB is pre-release software.
+</Note>
+
 Every SiafuDB instance is a **fragment**. A fragment is a meaningful subset of a larger graph, with explicit knowledge of which parts it owns, which parts it references, and which parts stay local.
 
 ## Why fragments, not partitions
@@ -13,18 +23,24 @@ This is the difference between a tree's leaves and a jigsaw's pieces. Leaves par
 
 ## Physical separation: Personal vs Network
 
-On a user's device, two completely isolated fragments live on disk:
+This is the design, not what ships. In the design, two completely isolated
+fragments live on a user's device:
 
 | Fragment     | Contains                                         | Encryption    | Sync              |
 | ------------ | ------------------------------------------------ | ------------- | ----------------- |
 | **Personal** | Messages, preferences, history, private AI state | User keys     | Personal pod only |
 | **Network**  | Honeycomb-hosted platform data                   | Platform keys | Opt-in, tokenised |
 
-Compromising the network fragment reveals zero personal data. The two stores do not share a file, a key, or an index.
+The goal is that compromising the network fragment reveals no personal data,
+because the two stores do not share a file, a key, or an index.
+
+What you can do today is open two databases under different names or paths.
+They are separate stores. The browser package encrypts each one at rest with
+its own data key. `siafudb-core` does not encrypt the file it writes.
 
 ## Authority
 
-Each vertex in a fragment has an authority:
+In the design, each vertex in a fragment has an authority:
 
 | Authority     | Meaning                   | Sync behaviour |
 | ------------- | ------------------------- | -------------- |
@@ -32,4 +48,5 @@ Each vertex in a fragment has an authority:
 | Referenced    | Source of truth elsewhere | Pull inward    |
 | Local         | No sync                   | Stays local    |
 
-Authority is set at write time and enforced by the sync engine. See [02 — Graph Sync Protocol](/research/02-graph-sync-protocol) for the full rules.
+In the design, authority is set at write time and enforced by the sync
+engine. No released API sets or reads it. See [Authority](/concepts/authority) and [02 — Graph Sync Protocol](/research/02-graph-sync-protocol) for the full rules.

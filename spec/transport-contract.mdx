@@ -3,6 +3,15 @@ title: "Transport Contract"
 description: "What GSPA and GSPN transports must guarantee — ordering, delivery, idempotency."
 ---
 
+<Note>
+  This contract is a draft for transports that are not implemented. GSPA and
+  GSPN are design direction. The endpoints and framings listed under
+  [GSPA-specific](#gspa-specific) do not exist in any released package. The
+  relay protocol that ships is specified in [Sync
+  v0](https://github.com/siafuDB/siafudb-gsp/blob/main/docs/SYNC-V0.md). See
+  [Sync v0: what ships today](/sync/v0) for its guarantees.
+</Note>
+
 Both GSPA and GSPN transports must satisfy this contract. Implementations may differ in how — HTTP is very different from an NTL synapse — but the guarantees they surface to the GSP layer above are identical.
 
 ## Delivery
@@ -31,6 +40,8 @@ Transports must surface backpressure to the emitter. A GSPA HTTP transport does 
 | Clock drift                 | Tolerate; ordering is causal, not timestamp-based                                        |
 
 ## GSPA-specific
+
+These are planned bindings. None is implemented.
 
 - HTTP: POST `/sync/mutations` with CBOR body; `Idempotency-Key` header set to `mutation.id`.
 - gRPC: bidirectional stream of `MutationBatch`; acks flow back on the same stream.
