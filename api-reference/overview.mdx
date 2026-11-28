@@ -1,42 +1,89 @@
 ---
-title: "API Reference — Overview"
-description: "Rust crate reference for SiafuDB — database, query, sync, access."
+title: "API reference overview"
+description: "What is published, where each API is documented, and what is not released yet."
 ---
 
-Reference documentation for the `siafudb` umbrella crate and its internals. This is not a tutorial — see [Guides](/guides/quickstart) for that. This is the surface.
+This section documents the APIs you can install today. It is a reference, not
+a tutorial. Start with the [Quickstart](/guides/quickstart) if you have not
+opened a database yet.
+
+SiafuDB is pre-release software. The API will change before 1.0.
 
 <CardGroup cols={2}>
   <Card title="Database" icon="database" href="/api-reference/database">
-    Opening fragments, schema, transactions, lifecycle.
+    Open, save, close and delete a database. Snapshots, storage and errors.
   </Card>
   <Card title="Query" icon="code" href="/api-reference/query">
-    Cypher execution, convenience APIs, result types.
+    Run Cypher with bound parameters. Result types, key-value and document
+    helpers.
   </Card>
   <Card title="Sync" icon="arrows-rotate" href="/api-reference/sync">
-    GSPA and GSPN builders, CDC hooks, transforms.
+    `db.sync` in the browser, and change capture in Rust.
   </Card>
 </CardGroup>
 
-## Crate layout
+## Published packages
 
-| Crate            | Responsibility                                     |
-| ---------------- | -------------------------------------------------- |
-| `siafudb`        | Umbrella — re-exports the public API               |
-| `siafudb-core`   | Engine, fragments, schema, mutations               |
-| `siafudb-sync`   | GSP, transforms, conflict resolution               |
-| `siafudb-access` | Convenience APIs (KV, doc, ts, vector)             |
-| `siafudb-server` | Optional standalone server — GSPA endpoints, admin |
+| Package              | Registry  | Version | What it is                                                                                  |
+| -------------------- | --------- | ------- | ------------------------------------------------------------------------------------------- |
+| `@bundu/siafudb-web` | npm       | 0.4.0   | The engine as WebAssembly in a Worker, with encrypted storage in the browser and `db.sync`. |
+| `siafudb-core`       | crates.io | 0.4.0   | The Rust library: open a file or an in-memory database, run queries, capture changes.       |
 
-See [01 — SiafuDB Architecture](/research/01-architecture) for the full crate rationale.
+```sh
+npm install @bundu/siafudb-web
+```
+
+```sh
+cargo add siafudb-core serde_json
+```
+
+`siafudb-core` needs rustc 1.99 or newer. Its parameters and results use
+`serde_json` types, so add `serde_json` too.
+
+The graph engine is a fork of GrafeoDB 0.6.2. It is published as the
+`siafudb-graph*` crates, and `siafudb-core` pulls them in for you.
+
+## Not published
+
+<Note>
+  There is no `siafudb` crate on crates.io. `use siafudb::...` does not
+  compile against anything you can install. Use `siafudb_core`.
+</Note>
+
+These exist in the repository as stubs or work in progress. You cannot
+install them:
+
+- `siafudb` (the umbrella crate), `siafudb-access` and `siafudb-server`.
+- `siafudb-sync` and `siafudb-gsp`. The browser package is the supported way
+  to use sync today. See [Sync v0](/sync/v0).
+- Packages for Python, Node.js, Go, Swift and Kotlin. None is released.
+
+## The two APIs side by side
+
+| Task                 | Browser (`@bundu/siafudb-web`)       | Rust (`siafudb-core`)                                     |
+| -------------------- | ------------------------------------ | --------------------------------------------------------- |
+| Open                 | `await SiafuDB.open(name, options?)` | `SiafuDB::open(path)?` or `SiafuDB::in_memory()?`         |
+| Write                | `await db.execute(query, params?)`   | `db.execute(query)?`, `db.execute_with_params(..)?`       |
+| Read                 | `await db.query(query, params?)`     | `db.query(query)?`, `db.query_with_params(..)?`           |
+| Save now             | `await db.flush()`                   | Not needed for a file. `db.export_snapshot()?` copies     |
+| Close                | `await db.close()`                   | Drop the value                                            |
+| Delete               | `await SiafuDB.destroy(name)`        | Delete the file                                           |
+| Key-value, documents | Not offered                          | `kv_set`, `kv_get`, `kv_delete`, `doc_insert`, `doc_find` |
+| Sync                 | `db.sync`                            | Change capture only                                       |
 
 ## Versioning
 
-SemVer from 0.1.0 onward. Pre-0.1 the surface is fluid; pin to an exact commit during the alpha.
+Both packages are at 0.4.0. Before 1.0, a minor version can change the API,
+so pin the version you tested with.
 
-## Generating docs
+## Signatures
 
-```bash
-cargo doc --workspace --no-deps --open
+This site holds the narrative. For exact Rust signatures, run this in a
+project that depends on `siafudb-core`:
+
+```sh
+cargo doc --package siafudb-core --no-deps --open
 ```
 
-The Mintlify site hosts the narrative; `cargo doc` is authoritative for signatures.
+The browser package ships its TypeScript declarations, so your editor shows
+every signature.

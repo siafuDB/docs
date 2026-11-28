@@ -3,32 +3,30 @@ title: "Integrating with NTL"
 description: "Swap GSPA for GSPN — route mutations as neural signals through the Nyuchi Transfer Layer."
 ---
 
-Once you have a SiafuDB fragment syncing via GSPA, the upgrade path to GSPN is a transport swap. The mutation model, the schema, and the authority rules do not change — only how the signal gets from one fragment to the next.
+<Note>
+  You cannot follow this guide today. GSPN and GSPA are design direction and
+  are not implemented. No released package contains a GSPN API, and this page
+  has no working code. For sync that works now, follow [Your first
+  sync](/guides/first-sync).
+</Note>
 
-## Prerequisites
+This page describes the planned path from GSPA to GSPN. In the design, the move is a transport swap. The mutation model, the schema, and the authority rules do not change. Only the way a signal gets from one fragment to the next changes.
+
+## Planned prerequisites
 
 - **NTL reachable on the network.** See [NTL — First Steps](https://ntl.nyuchi.com/research/06-first-steps).
 - **IPv6** or dual-stack addressing. GSPN assumes neural addresses, which are IPv6-native.
 - **Synapse topology** defined on the NTL side — where signals originate, where they terminate, what transforms attach to each synapse.
 
-## Swap the transport
+## Swapping the transport (design)
 
-```rust
-use siafudb::sync::Gspn;
+No API for this exists yet, so this page shows no code. The plan is that you point a fragment at an NTL synapse instead of a GSPA endpoint.
 
-let gspn = Gspn::new()
-    .from(&pod)
-    .to_synapse("synapse://platform-ingress")
-    .build()?;
+In the design, the emitter no longer worries about destinations. It hands the mutation to NTL as a signal. NTL decides which synapses fire and which transformations apply.
 
-gspn.start().await?;
-```
+## Where transforms would live
 
-The emitter no longer worries about destinations. It hands the mutation to NTL as a signal; NTL decides which synapses fire and which transformations apply.
-
-## Where transforms live now
-
-Under GSPA, the emitter applies transforms before the wire. Under GSPN, transforms are attached to synapses:
+In the GSPA design, the emitter applies transforms before the wire. In the GSPN design, transforms are attached to synapses. The names below are illustrative:
 
 | Synapse                      | Transform                |
 | ---------------------------- | ------------------------ |
@@ -36,12 +34,12 @@ Under GSPA, the emitter applies transforms before the wire. Under GSPN, transfor
 | `synapse://analytics`        | `Anonymise`, `Aggregate` |
 | `synapse://owner-feedback`   | `Anonymise`              |
 
-Moving transforms to the network means a single emitted signal can feed multiple destinations with different projections — no duplicate serialisation.
+Moving transforms to the network would mean a single emitted signal can feed multiple destinations with different projections — no duplicate serialisation.
 
-## Learned routing
+## Learned routing (design)
 
-Synapses retain weights. Frequently-travelled paths strengthen; cold paths decay. Over time, a deployment of SiafuDB fragments connected through NTL learns its own topology. See [NTL — Twelve Principles](https://ntl.nyuchi.com/research/05-twelve-principles).
+In the design, synapses retain weights. Frequently-travelled paths strengthen; cold paths decay. Over time, a deployment of SiafuDB fragments connected through NTL learns its own topology. See [NTL — Twelve Principles](https://ntl.nyuchi.com/research/05-twelve-principles).
 
-## Fall-back
+## Fall-back (design)
 
-If NTL is unreachable, GSPN degrades to GSPA. The graph stays coherent; you lose adaptive routing until the neural layer comes back.
+The plan is that GSPN degrades to GSPA when NTL is unreachable. The graph stays coherent, and you lose adaptive routing until the neural layer comes back.

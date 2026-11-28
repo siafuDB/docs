@@ -7,7 +7,17 @@ SiafuDB is a graph-native embedded database with a sync protocol built in. The c
 
 This page is the orientation map.
 
+<Note>
+  This page mixes what is released with design direction. Released today:
+  the core engine with Cypher queries, the browser package with encrypted
+  storage, and [Sync v0](/sync/v0). The Personal and Network fragment model,
+  authority, transformations, and the GSPA and GSPN transports are design
+  direction and are not built. SiafuDB is pre-release software.
+</Note>
+
 ## Layers
+
+The diagram shows the target architecture. The table under it says which parts you can use today.
 
 ```
 ┌──────────────────────────────────────────────────┐
@@ -28,44 +38,61 @@ This page is the orientation map.
 └──────────────────────────────────────────────────┘
 ```
 
-## Crate layout
+| Layer               | Released in 0.4.0                                                                                  | Design direction                                  |
+| ------------------- | -------------------------------------------------------------------------------------------------- | ------------------------------------------------- |
+| Access patterns     | Cypher queries. Key-value and document helpers in `siafudb-core`.                                  | Time-series and vector access patterns            |
+| Graph Sync Protocol | [Sync v0](/sync/v0): later write wins per property, deletes win                                    | Transforms, other conflict strategies             |
+| Core engine         | A fork of GrafeoDB 0.6.2, built with its Cypher and GQL parsers. Change capture in `siafudb-core`. | Vector and full-text search through SiafuDB's API |
+| Transport           | The browser package talks to a relay over HTTPS                                                    | GSPA and GSPN                                     |
 
-```
-siafudb/
-├── crates/
-│   ├── siafudb/          # Unified facade
-│   ├── siafudb-core/     # Engine + fragments + identity
-│   ├── siafudb-sync/     # Graph Sync Protocol (GSPA + GSPN)
-│   ├── siafudb-access/   # KV, document, time-series patterns
-│   └── siafudb-server/   # Optional standalone server
-├── docs/                 # This Mintlify site
-└── ...
-```
+## Repository layout
+
+The repository is [siafuDB/siafudb](https://github.com/siafuDB/siafudb). Only two of its parts are published.
+
+| Path                    | What it is                                             | Published                          |
+| ----------------------- | ------------------------------------------------------ | ---------------------------------- |
+| `engine/`               | The graph engine, a fork of GrafeoDB 0.6.2             | As the `siafudb-graph*` crates     |
+| `crates/siafudb-core`   | The Rust library: open, query, helpers, change capture | crates.io, 0.4.0                   |
+| `packages/siafudb-web`  | The browser package                                    | npm, `@bundu/siafudb-web` 0.4.0    |
+| `crates/siafudb-wasm`   | WebAssembly bindings that the browser package uses     | No, shipped inside the npm package |
+| `crates/siafudb-gsp`    | Connects the engine to the sync protocol               | No                                 |
+| `crates/siafudb-store`  | Storage layer, in progress                             | No                                 |
+| `crates/siafudb-ffi`    | Bindings for Swift and Kotlin, in progress             | No                                 |
+| `crates/siafudb`        | Umbrella crate, a stub                                 | No                                 |
+| `crates/siafudb-sync`   | Stub                                                   | No                                 |
+| `crates/siafudb-access` | Stub                                                   | No                                 |
+| `crates/siafudb-server` | Stub                                                   | No                                 |
+
+The sync protocol and the reference relay live in [siafuDB/siafudb-gsp](https://github.com/siafuDB/siafudb-gsp).
 
 ## Fragment model
 
-Every SiafuDB instance is a **fragment** of a larger graph. On a user's device, two physically isolated instances run side by side:
+This section is design direction. Today, every database you open is a standalone local database. See [Fragments](/concepts/fragments).
+
+Every SiafuDB instance is a **fragment** of a larger graph. In the design, two physically isolated instances run side by side on a user's device:
 
 - **Personal.** Sovereign data. Encrypted with user keys. Never mixes with network data.
 - **Network.** Honeycomb fragment, only present when the user opts in. Compromise reveals zero personal data.
 
-Each vertex carries an authority: **Authoritative** (source of truth here, push outward), **Referenced** (source of truth elsewhere, pull inward), or **Local** (no sync).
+In the design, each vertex carries an authority: **Authoritative** (source of truth here, push outward), **Referenced** (source of truth elsewhere, pull inward), or **Local** (no sync).
 
 ## Engine foundation
 
-SiafuDB's engine is built on three open-source projects. No code is copied — the implementation is original Rust. The intellectual lineage is credited openly.
+SiafuDB's engine is a fork of one open-source project, and its design draws on two more. The lineage is credited openly.
 
-- **GrafeoDB** (Apache 2.0, Rust) — the core engine, taken as a Cargo dependency. Pure Rust, six query languages, ACID transactions, HNSW vector search, CDC.
-- **KuzuDB research** (MIT, C++ — academic research only) — WCOJ, factorised execution, morsel-driven parallelism, re-implemented in Rust.
-- **ArcadeDB design** (Apache 2.0, Java — design influence) — native multi-model, O(1) traversal, time-series compression, MCP server as first-class feature.
+- **GrafeoDB** (Apache 2.0, Rust). The core engine is a fork of GrafeoDB 0.6.2. It lives in the repository under `engine/` and is published as the `siafudb-graph*` crates. SiafuDB builds it with the Cypher and GQL parsers. The examples on this site use Cypher.
+- **KuzuDB research** (MIT, C++). An influence on the planned query execution work. No KuzuDB code is used.
+- **ArcadeDB design** (Apache 2.0, Java). A design influence for the multi-model access patterns. No ArcadeDB code is used.
 
 See [Engine Foundation](/research/01-architecture#the-engine-foundation) for the full picture.
 
 ## Transport
 
-The Graph Sync Protocol has two transport modes, both first-class:
+What ships is [Sync v0](/sync/v0). A device sends encrypted, signed changes to a relay over HTTPS, and the other devices pick them up.
 
-- **GSPA** — Graph Sync Protocol with API. HTTP/gRPC/WebSocket/Kafka. Ships first.
-- **GSPN** — Graph Sync Protocol with NTL. Neural signal propagation through NTL's learning network. Ships second. Hardware NPU acceleration on modern devices.
+The design has two transport modes. Neither is built:
 
-See [NTL integration](/sync/gspn) for how SiafuDB signals into NTL.
+- **GSPA**: Graph Sync Protocol with API. HTTP, gRPC, WebSocket, Kafka. Planned first.
+- **GSPN**: Graph Sync Protocol with NTL. Neural signal propagation through NTL's learning network. Planned second.
+
+See [GSPA](/sync/gspa) and [GSPN](/sync/gspn) for the design.

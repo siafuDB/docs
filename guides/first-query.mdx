@@ -1,43 +1,239 @@
 ---
-title: "Your First Query"
-description: "Cypher basics — creating, matching, and traversing in a SiafuDB fragment."
+title: "Your first query"
+description: "Create, match, traverse, update and delete with Cypher, in the browser or in Rust."
 ---
 
-SiafuDB speaks Cypher (via GrafeoDB's parser). If you know Neo4j's Cypher or Kuzu's dialect, you already know most of this.
+This guide takes the database from the [Quickstart](/guides/quickstart) and
+runs the queries you need most often. It uses Cypher. If you know Cypher from
+another graph database, most of this is familiar.
 
-## Create
+The steps show the browser API. [The same in Rust](#the-same-in-rust) has the
+whole guide as one Rust program. The query text is identical in both.
 
-```cypher
-CREATE (:Person { name: 'Bryan', email: 'bryan@nyuchi.com' });
-CREATE (:Person { name: 'Sarah', email: 'sarah@example.com' });
-MATCH (a:Person {email: 'bryan@nyuchi.com'}),
-      (b:Person {email: 'sarah@example.com'})
-CREATE (a)-[:KNOWS { since: 2023 }]->(b);
+## Before you start
+
+Three rules apply to every query:
+
+- **Bind values as parameters.** Write `$name` in the query and pass the
+  value separately. Never build query text from user input.
+- **Send one statement per call.** A call with two statements separated by
+  `;` is rejected.
+- **Return properties, not whole nodes.** `RETURN p.name` gives you a typed
+  value. `RETURN p` gives you a debug string in 0.4.0.
+
+`execute` is for writes and `query` is for reads.
+
+## 1. Create nodes
+
+```ts
+import { SiafuDB } from "@bundu/siafudb-web";
+
+const db = await SiafuDB.open("people");
+
+await db.execute("CREATE (:Person {name: $name, city: $city})", {
+  name: "Amara",
+  city: "Accra",
+});
+await db.execute("CREATE (:Person {name: $name, city: $city})", {
+  name: "Tatenda",
+  city: "Harare",
+});
 ```
 
-## Match
+`Person` is the label. `name` and `city` are properties. You do not declare
+a schema first.
 
-```cypher
-MATCH (p:Person) RETURN p.name;
+## 2. Connect them
+
+Match the two nodes, then create an edge between them:
+
+```ts
+await db.execute(
+  `MATCH (a:Person {name: $a}), (b:Person {name: $b})
+   CREATE (a)-[:KNOWS {since: $since}]->(b)`,
+  { a: "Amara", b: "Tatenda", since: 2024 },
+);
 ```
 
-## Traverse
+Edges have a direction and a type, here `KNOWS`. They can carry properties
+too.
 
-```cypher
-MATCH (a:Person)-[:KNOWS]->(b:Person)
-WHERE a.name = 'Bryan'
-RETURN b.name;
+## 3. Match
+
+```ts
+const { columns, rows } = await db.query(
+  "MATCH (p:Person) RETURN p.name, p.city ORDER BY p.name",
+);
+console.log(columns); // ["p.name", "p.city"]
+console.log(rows); // [["Amara", "Accra"], ["Tatenda", "Harare"]]
 ```
 
-Edges are stored as direct pointers, so this traversal is O(1) per hop — no index lookup. See [Graph Model](/concepts/graph-model) for the storage detail.
+Each row is an array with one cell per column. A property that a node does
+not have comes back as `null`.
 
-## Convenience APIs
+Filter with `WHERE`, and bind the value you compare with:
 
-If Cypher is overkill for a use case, SiafuDB exposes the same graph through key-value, document, time-series, and vector APIs. The graph underneath is identical — only the surface changes.
+```ts
+const { rows } = await db.query(
+  "MATCH (p:Person) WHERE p.city = $city RETURN p.name",
+  { city: "Harare" },
+);
+console.log(rows); // [["Tatenda"]]
+```
+
+## 4. Traverse
+
+Follow an edge from one node to the next:
+
+```ts
+const { rows } = await db.query(
+  `MATCH (a:Person {name: $name})-[k:KNOWS]->(b:Person)
+   RETURN b.name, k.since`,
+  { name: "Amara" },
+);
+console.log(rows); // [["Tatenda", 2024]]
+```
+
+Add more hops to the pattern to go further:
+`(a)-[:KNOWS]->()-[:KNOWS]->(c)`.
+
+## 5. Update
+
+```ts
+await db.execute("MATCH (p:Person {name: $name}) SET p.city = $city", {
+  name: "Tatenda",
+  city: "Bulawayo",
+});
+```
+
+`MERGE` creates the node if it is missing and matches it if it exists:
+
+```ts
+await db.execute("MERGE (p:Person {name: $name}) SET p.city = $city", {
+  name: "Kofi",
+  city: "Kumasi",
+});
+```
+
+## 6. Count
+
+```ts
+const { rows } = await db.query("MATCH (p:Person) RETURN count(p)");
+console.log(rows); // [[3]]
+```
+
+## 7. Delete
+
+A node that still has edges cannot be deleted with `DELETE`. Use
+`DETACH DELETE`, which removes its edges too:
+
+```ts
+await db.execute("MATCH (p:Person {name: $name}) DETACH DELETE p", {
+  name: "Tatenda",
+});
+```
+
+## The same in Rust
+
+```sh
+cargo add siafudb-core serde_json
+```
+
+`siafudb-core` takes parameters as a `serde_json::Map`. The small `params`
+function below builds one.
 
 ```rust
-db.kv_set("user:bryan", &user_json)?;
-let value = db.kv_get("user:bryan")?;
+use serde_json::{json, Map, Value};
+use siafudb_core::SiafuDB;
+
+fn params<const N: usize>(pairs: [(&str, Value); N]) -> Map<String, Value> {
+    pairs.into_iter().map(|(k, v)| (k.to_string(), v)).collect()
+}
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let db = SiafuDB::in_memory()?;
+
+    // 1. Create nodes
+    db.execute_with_params(
+        "CREATE (:Person {name: $name, city: $city})",
+        params([("name", json!("Amara")), ("city", json!("Accra"))]),
+    )?;
+    db.execute_with_params(
+        "CREATE (:Person {name: $name, city: $city})",
+        params([("name", json!("Tatenda")), ("city", json!("Harare"))]),
+    )?;
+
+    // 2. Connect them
+    db.execute_with_params(
+        "MATCH (a:Person {name: $a}), (b:Person {name: $b})
+         CREATE (a)-[:KNOWS {since: $since}]->(b)",
+        params([
+            ("a", json!("Amara")),
+            ("b", json!("Tatenda")),
+            ("since", json!(2024)),
+        ]),
+    )?;
+
+    // 3. Match
+    let people = db.query("MATCH (p:Person) RETURN p.name, p.city ORDER BY p.name")?;
+    println!("{:?}", people.columns); // ["p.name", "p.city"]
+    println!("{:?}", people.rows);
+
+    // 4. Traverse
+    let friends = db.query_with_params(
+        "MATCH (a:Person {name: $name})-[k:KNOWS]->(b:Person)
+         RETURN b.name, k.since",
+        params([("name", json!("Amara"))]),
+    )?;
+    assert_eq!(friends.rows, vec![vec![json!("Tatenda"), json!(2024)]]);
+
+    // 5. Update
+    db.execute_with_params(
+        "MATCH (p:Person {name: $name}) SET p.city = $city",
+        params([("name", json!("Tatenda")), ("city", json!("Bulawayo"))]),
+    )?;
+    db.execute_with_params(
+        "MERGE (p:Person {name: $name}) SET p.city = $city",
+        params([("name", json!("Kofi")), ("city", json!("Kumasi"))]),
+    )?;
+
+    // 6. Count
+    let count = db.query("MATCH (p:Person) RETURN count(p)")?;
+    assert_eq!(count.rows, vec![vec![json!(3)]]);
+
+    // 7. Delete
+    db.execute_with_params(
+        "MATCH (p:Person {name: $name}) DETACH DELETE p",
+        params([("name", json!("Tatenda"))]),
+    )?;
+
+    Ok(())
+}
 ```
 
-See [Graph Model — Convenience Access Patterns](/concepts/graph-model#convenience-access-patterns) for the mapping.
+Use `SiafuDB::open("./people.siafu")?` in place of `in_memory()` to keep the
+data in a file.
+
+## Helpers for simple data
+
+`siafudb-core` also has key-value and document helpers. They store ordinary
+nodes, so the data stays in the same graph. The browser package does not
+offer them.
+
+```rust
+db.kv_set("session:token", "abc123")?;
+let token = db.kv_get("session:token")?; // Some("abc123")
+```
+
+The [Query API](/api-reference/query#key-value-helpers) documents them.
+
+## What's next
+
+<CardGroup cols={2}>
+  <Card title="Query API" icon="code" href="/api-reference/query">
+    Parameters, result types and errors.
+  </Card>
+  <Card title="Your first sync" icon="arrows-rotate" href="/guides/first-sync">
+    Keep two browser windows in step through a relay.
+  </Card>
+</CardGroup>

@@ -4,6 +4,15 @@ description: "The atomic unit of graph change: what gets signed, synced, and log
 keywords: ["mutation", "op", "sync", "change log", "GSP"]
 ---
 
+<Note>
+  **Released:** change capture in `siafudb-core` 0.4.0, and [Sync
+  v0](/sync/v0) in the browser package, which signs and encrypts changes on
+  the device. See the [Sync API](/api-reference/sync). **Design direction:**
+  the general signed op described on this page, with fragment ids, batches and
+  derived data. This page describes the model, not an API you can call.
+  SiafuDB is pre-release software.
+</Note>
+
 A **mutation** is the atomic unit of graph change in SiafuDB. Every write produces one or more mutations. Mutations are what the Graph Sync Protocol signs, ships, and applies on the receiving device.
 
 ## Shape
@@ -29,18 +38,14 @@ Mutations can be grouped into a batch, which is signed as a unit. The batch sign
 
 ## How mutations are captured
 
-<Warning>
-  Capture is not finished. Read this section before you rely on sync.
-</Warning>
+`siafudb-core` 0.4.0 has two ways to see what a write did:
 
-Today the engine records each write in an in-memory change log as the query text plus its bound parameters. This is enough to replay writes between two instances in one process. It is not a signed mutation, and the log does not survive a restart.
+- **The change log.** Every successful `execute` is recorded in memory as the query text plus its bound parameters. The log does not survive a restart, and sync does not use it.
+- **Change capture.** After `enable_change_capture()`, the engine reports each committed write as structured changes: a node or an edge was put or deleted, keyed by an id that is stable across devices. `apply_changes` applies them to another database. This is what sync builds on.
 
-The target is structured capture: each write becomes a signed op with a defined payload, identical on every platform. Two sources are under evaluation:
+Captured changes are not signed. In [Sync v0](/sync/v0), the browser package signs and encrypts them before they leave the device. The crate that does this for Rust is not published yet.
 
-- **Engine change data capture.** The engine can emit a change event per created, updated, or deleted vertex and edge.
-- **A structured write API.** Writes go through typed calls that produce ops directly.
-
-Which one becomes the supported path is undecided.
+Capture does not see schema changes, indexes or named graphs. The [Sync API](/api-reference/sync#rust-change-capture-in-siafudb-core) documents the calls.
 
 ## Derived data
 

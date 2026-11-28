@@ -1,66 +1,318 @@
 ---
 title: "Query API"
-description: "Cypher execution, convenience APIs, result types."
+description: "Run Cypher with bound parameters, read typed results, and use the key-value and document helpers."
 ---
 
-## Cypher
+This page documents how you run queries with `@bundu/siafudb-web` 0.4.0 and
+`siafudb-core` 0.4.0. Both are pre-release, and the API will change before
+1.0. To open a database first, see the [Database API](/api-reference/database).
+
+<Note>
+  The `.param().fetch()` builder, typed row accessors, and the time-series
+  and vector APIs that an earlier version of this page showed do not exist.
+</Note>
+
+## Run a query
+
+`execute` is for writes and `query` is for reads. Both take the query text
+and, optionally, named parameters.
+
+### Browser
+
+```ts
+await db.execute("CREATE (:Person {name: $name, age: $age})", {
+  name: "Amara",
+  age: 31,
+});
+
+const result = await db.query(
+  "MATCH (p:Person) WHERE p.age > $min RETURN p.name, p.age",
+  { min: 30 },
+);
+console.log(result.columns); // ["p.name", "p.age"]
+console.log(result.rows); // [["Amara", 31]]
+```
+
+| Call                               | Returns                                      |
+| ---------------------------------- | -------------------------------------------- |
+| `await db.execute(query, params?)` | `{ rowsAffected: number }`                   |
+| `await db.query(query, params?)`   | `{ columns: string[], rows: JsonValue[][] }` |
+
+`execute` schedules a save. See
+[Save, close and delete](/api-reference/database#save-close-and-delete).
+
+### Rust
 
 ```rust
-let rows = db.query("MATCH (p:Person) WHERE p.email = $email RETURN p.name")
-    .param("email", "bryan@nyuchi.com")
-    .fetch()?;
+use serde_json::{json, Map};
+use siafudb_core::SiafuDB;
 
-for row in rows {
-    let name: &str = row.get("p.name")?;
-    println!("{name}");
+fn main() -> Result<(), siafudb_core::SiafuError> {
+    let db = SiafuDB::in_memory()?;
+
+    let mut params = Map::new();
+    params.insert("name".into(), json!("Amara"));
+    params.insert("age".into(), json!(31));
+    db.execute_with_params("CREATE (:Person {name: $name, age: $age})", params)?;
+
+    let mut params = Map::new();
+    params.insert("min".into(), json!(30));
+    let result = db.query_with_params(
+        "MATCH (p:Person) WHERE p.age > $min RETURN p.name, p.age",
+        params,
+    )?;
+    println!("{:?}", result.columns); // ["p.name", "p.age"]
+    println!("{:?}", result.rows); // [[String("Amara"), Number(31)]]
+    Ok(())
 }
 ```
 
-Parameters are bound by name. The `Row` type exposes typed accessors (`get::<T>`) that downcast from the GrafeoDB value model.
+| Call                                        | Returns                                                                   |
+| ------------------------------------------- | ------------------------------------------------------------------------- |
+| `db.execute(query)`                         | `ExecuteResult { rows_affected: usize }`                                  |
+| `db.execute_with_params(query, params)`     | The same.                                                                 |
+| `db.query(query)`                           | `QueryResult { columns: Vec<String>, rows: Vec<Vec<serde_json::Value>> }` |
+| `db.query_with_params(query, params)`       | The same.                                                                 |
+| `db.query_typed_with_params(query, params)` | `TypedQueryResult`, with `siafudb_core::EngineValue` cells.               |
 
-## Convenience APIs
+`params` is a `serde_json::Map<String, serde_json::Value>`.
 
-Same graph underneath, tighter surface on top:
+## Parameters
 
-### Key-Value
+Write `$name` in the query and pass the value separately. A bound value is
+never read as query text, so user input cannot change the query.
 
-```rust
-db.kv_set("user:bryan", &bryan)?;
-let v: User = db.kv_get("user:bryan")?;
+| Value                   | Accepted                                     |
+| ----------------------- | -------------------------------------------- |
+| String, boolean, `null` | Yes                                          |
+| Integer                 | Yes, up to the largest signed 64-bit integer |
+| Floating-point number   | Yes                                          |
+| Array or object         | No. The call fails with a query error.       |
+
+A query that names a parameter you did not pass fails with a query error.
+
+Names cannot be parameters. A label, an edge type or a property name is part
+of the query text.
+
+## Results
+
+A result has `columns` and `rows`. Each row has one cell per column, in the
+same order.
+
+| Stored value     | Cell                     |
+| ---------------- | ------------------------ |
+| String           | String                   |
+| Integer, float   | Number                   |
+| Boolean          | Boolean                  |
+| List             | Array                    |
+| Missing property | `null`                   |
+| Anything else    | A string with debug text |
+
+"Anything else" includes whole nodes, whole edges and maps. `RETURN p` and
+`RETURN properties(p)` give you a debug string, and its format is not
+stable. Return the properties you need by name:
+
+```cypher
+MATCH (p:Person) RETURN p.name, p.city
 ```
 
-Backed by `(:_KV {key, value})`.
+In Rust, `query_typed_with_params` returns the engine's own values and
+converts nothing.
 
-### Document
+### What `rows_affected` means
 
-```rust
-let id = db.doc_insert("people", &person)?;
-let hits = db.doc_find("people", doc! { "email": "bryan@nyuchi.com" })?;
+`rows_affected` in Rust, and `rowsAffected` in the browser, is the number of
+rows the statement returned. It is `0` for a write with no `RETURN` clause.
+It is not the number of nodes or edges that changed, so do not use it to
+check a write.
+
+## Query language
+
+The engine is a fork of GrafeoDB 0.6.2, built with its Cypher and GQL
+parsers. This site documents Cypher. Every statement below was run against
+`siafudb-core` 0.4.0.
+
+```cypher
+CREATE (:Person {name: 'Amara', city: 'Accra'})
 ```
 
-Backed by nodes labelled with the collection name.
-
-### Time-series
-
-```rust
-db.ts_append("metrics.cpu", now, 0.42)?;
-let window = db.ts_range("metrics.cpu", start, end)?;
+```cypher
+MATCH (a:Person {name: $a}), (b:Person {name: $b})
+CREATE (a)-[:KNOWS {since: $since}]->(b)
 ```
 
-Backed by timestamped nodes linked by `NEXT` edges.
-
-### Vector
-
-```rust
-let neighbours = db.vector_search("embeddings", &query_vec, k = 10)?;
+```cypher
+MATCH (p:Person) WHERE p.age > $min
+RETURN p.name ORDER BY p.age DESC LIMIT 2
 ```
 
-HNSW index over property-bag vectors.
+```cypher
+MATCH (a:Person {name: $name})-[:KNOWS]->()-[:KNOWS]->(c:Person)
+RETURN c.name
+```
 
-## Result types
+```cypher
+MATCH (p:Person {name: $name}) OPTIONAL MATCH (p)-[:KNOWS]->(q)
+RETURN p.name, q.name
+```
 
-All query results funnel through `QueryResult` — a streaming iterator over `Row`. Materialise with `.collect::<Vec<_>>()` if you need a concrete list; otherwise stream for large results.
+```cypher
+MATCH (p:Person) RETURN count(p), min(p.age), max(p.age), avg(p.age)
+```
 
-## Reference
+```cypher
+MATCH (p:Person {name: $name}) SET p.city = $city
+```
 
-Full signatures: `cargo doc --package siafudb --open`.
+```cypher
+MERGE (p:Person {name: $name}) SET p.city = $city
+```
+
+```cypher
+MATCH (p:Person {name: $name}) REMOVE p.city
+```
+
+```cypher
+MATCH (p:Person {name: $name}) DETACH DELETE p
+```
+
+Keep these rules in mind:
+
+- **One statement per call.** Two statements separated by `;` are rejected.
+- **No schema.** You do not declare labels, edge types or property types.
+  Two nodes with the same label can hold different types in the same
+  property.
+- **`DELETE` needs a node without edges.** Use `DETACH DELETE` to remove a
+  node together with its edges.
+- **A node can have several labels.** `CREATE (:Person:Admin {name: 'Root'})`
+  works, and `labels(p)` returns them as a list.
+
+Treat anything not shown here as untested. Vector search and full-text
+search are not documented for SiafuDB 0.4.0.
+
+## Key-value helpers
+
+`siafudb-core` only. The browser package does not offer them.
+
+```rust
+use siafudb_core::SiafuDB;
+
+fn main() -> Result<(), siafudb_core::SiafuError> {
+    let db = SiafuDB::in_memory()?;
+
+    db.kv_set("session:token", "abc123")?;
+    assert_eq!(db.kv_get("session:token")?, Some("abc123".to_string()));
+
+    db.kv_delete("session:token")?;
+    assert_eq!(db.kv_get("session:token")?, None);
+    Ok(())
+}
+```
+
+| Call                    | What it does                                             |
+| ----------------------- | -------------------------------------------------------- |
+| `db.kv_set(key, value)` | Stores a string under `key`. Replaces any earlier value. |
+| `db.kv_get(key)`        | Returns `Option<String>`.                                |
+| `db.kv_delete(key)`     | Removes the key. Does nothing if it is missing.          |
+
+Keys and values are strings. Each pair is a node with the label `_KV` and
+the properties `key` and `value`, so you can also read it with a query:
+
+```cypher
+MATCH (n:_KV) RETURN n.key, n.value
+```
+
+## Document helpers
+
+`siafudb-core` only. A document is a JSON object. It is stored as one node,
+with one property per top-level key.
+
+```rust
+use serde_json::{json, Map};
+use siafudb_core::SiafuDB;
+
+fn main() -> Result<(), siafudb_core::SiafuError> {
+    let db = SiafuDB::in_memory()?;
+
+    let id = db.doc_insert("messages", json!({ "from": "Amara", "text": "Hello!" }))?;
+
+    let mut params = Map::new();
+    params.insert("from".into(), json!("Amara"));
+    let found = db.query_with_params(
+        "MATCH (d:_doc_messages {from: $from}) RETURN d._id, d.text",
+        params,
+    )?;
+    assert_eq!(found.rows, vec![vec![json!(id.to_string()), json!("Hello!")]]);
+    Ok(())
+}
+```
+
+| Call                                  | What it does                                                                    |
+| ------------------------------------- | ------------------------------------------------------------------------------- |
+| `db.doc_insert(collection, document)` | Stores the document and returns its id, a `Uuid`.                               |
+| `db.doc_find(collection, &filter)`    | Returns the documents whose top-level properties equal every entry of `filter`. |
+
+- The node's label is `_doc_` followed by the collection name. The id is in
+  the property `_id`.
+- Pass a JSON object. Any other JSON value returns an id and stores nothing.
+- Collection names and keys must be plain identifiers: letters, digits and
+  `_`, not starting with a digit, at most 64 characters.
+- Keys that start with `_` are reserved and rejected.
+- A nested array or object is stored as its JSON text.
+- `doc_find` returns whole nodes, so each cell is a debug string. To get
+  typed values, query the label and return the properties by name, as in
+  the example.
+
+There are no time-series or vector helpers.
+
+## The change log
+
+Every successful `execute` is recorded in an in-memory log, with its query
+text and its parameters kept separate. Reads made with `query` are not
+recorded. The log starts empty each time you open the database.
+
+```ts
+const entries = await db.changesSince(0);
+// [{ sequence: 1, timestamp_ms, query, rows_affected, params }, ...]
+```
+
+```rust
+let entries = db.change_log().lock().unwrap().snapshot();
+let newer = db.change_log().lock().unwrap().since(1);
+```
+
+In Rust, `db.set_mutation_tracking(false)` stops the recording, for example
+during a bulk import.
+
+This log is not what sync uses. For changes you can apply to another
+database, see [change capture](/api-reference/sync#rust-change-capture-in-siafudb-core).
+
+## Errors
+
+A query the engine rejects fails with `SiafuError::QueryError` in Rust. In
+the browser it throws a `SiafuError` whose `code` is `"query"`.
+
+```ts
+import { SiafuError } from "@bundu/siafudb-web";
+
+try {
+  await db.query("THIS IS NOT A QUERY");
+} catch (e) {
+  if (e instanceof SiafuError) console.log(e.code); // "query"
+}
+```
+
+```rust
+use siafudb_core::{SiafuDB, SiafuError};
+
+fn main() -> Result<(), SiafuError> {
+    let db = SiafuDB::in_memory()?;
+    match db.query("THIS IS NOT A QUERY") {
+        Err(SiafuError::QueryError(message)) => println!("{message}"),
+        other => println!("{other:?}"),
+    }
+    Ok(())
+}
+```
+
+The [Database API](/api-reference/database) lists every error for both packages.

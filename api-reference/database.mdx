@@ -1,59 +1,262 @@
 ---
 title: "Database API"
-description: "Opening fragments, schemas, transactions, lifecycle."
+description: "Open, save, close and delete a database, in the browser package and in siafudb-core."
 ---
 
-The `Siafu` type is the entry point. Everything else hangs off it.
+This page documents how you open a database and what happens to its data. It
+covers `@bundu/siafudb-web` 0.4.0 and `siafudb-core` 0.4.0. Both are
+pre-release, and the API will change before 1.0.
 
-## Opening a fragment
+For running queries, see the [Query API](/api-reference/query).
 
-```rust
-use siafudb::{Siafu, FragmentKind};
+<Note>
+  The fragment kinds, the schema language and the transaction closure that an
+  earlier version of this page showed do not exist. Every database you open
+  is a standalone local database. There is no `Siafu` type and no `siafudb`
+  crate: the type is `SiafuDB`, from `@bundu/siafudb-web` or `siafudb_core`.
+</Note>
 
-let db = Siafu::open("./my.siafu", FragmentKind::Personal)?;
+## Browser: `@bundu/siafudb-web`
+
+The package runs the engine as WebAssembly in a Worker. It needs a secure
+context (`https://` or `localhost`).
+
+### Open
+
+```ts
+import { SiafuDB } from "@bundu/siafudb-web";
+
+const db = await SiafuDB.open("notes");
 ```
 
-`FragmentKind` values:
+`open` creates the database if it does not exist. If it exists, `open`
+decrypts the stored copy and loads it.
 
-| Kind        | Default authority | Typical use                            |
-| ----------- | ----------------- | -------------------------------------- |
-| `Personal`  | Authoritative     | On-device pod, personal sovereign data |
-| `Network`   | Referenced        | Platform-side mirror                   |
-| `Edge`      | Referenced        | Read-through cache at edge locations   |
-| `Transient` | Local             | UI state, sessions — never synced      |
+Pass options as the second argument:
 
-## Schema
-
-```rust
-db.execute(r#"
-    CREATE NODE TABLE Person(name STRING, email STRING, PRIMARY KEY(email));
-    CREATE REL TABLE Knows(FROM Person TO Person, since TIMESTAMP);
-"#)?;
+```ts
+const db = await SiafuDB.open("notes", {
+  lock: "fail",
+  autosaveMs: 0,
+});
 ```
 
-Schemas are enforced at write time. See [Graph Model](/concepts/graph-model).
+| Option            | Default  | What it does                                                                                                                                                                                         |
+| ----------------- | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `backend`         | `"auto"` | Where the data is kept. `"auto"` uses the browser's private file storage (OPFS) when the Worker can use it, and IndexedDB otherwise. `"opfs"` fails rather than fall back. `"idb"` forces IndexedDB. |
+| `autosaveMs`      | `500`    | How long after the last write the database saves itself, in milliseconds. `0` turns autosave off, and you call `flush()` yourself.                                                                   |
+| `lock`            | `"wait"` | What to do when another tab has the database open. `"wait"` queues behind it. `"fail"` rejects at once with `DatabaseLockedError`.                                                                   |
+| `lockTimeoutMs`   | none     | With `lock: "wait"`, give up after this many milliseconds with `DatabaseLockedError`.                                                                                                                |
+| `workerUrl`       | bundled  | The Worker script URL, for a bundler that cannot resolve the default.                                                                                                                                |
+| `wasmUrl`         | bundled  | The `.wasm` URL.                                                                                                                                                                                     |
+| `onAutosaveError` | none     | Called when a background save fails. The data stays unsaved and is retried on the next write or `flush()`.                                                                                           |
+| `onSaved`         | none     | Called after each successful save, with the new write counter.                                                                                                                                       |
 
-## Transactions
+The handle has four read-only properties:
+
+| Property       | Meaning                                                                                                                             |
+| -------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| `db.name`      | The name you opened.                                                                                                                |
+| `db.backend`   | `"opfs"` or `"idb"`: the storage in use.                                                                                            |
+| `db.restored`  | `true` if `open` loaded an existing database.                                                                                       |
+| `db.persisted` | The browser's answer to a request for persistent storage. `false` means the browser may evict the data. `null` means it cannot say. |
+
+### One tab at a time
+
+One tab can have a given database open at a time. A second tab waits until
+the first one closes it, or fails at once if you pass `lock: "fail"`.
+
+### Save, close and delete
+
+| Call                          | What it does                                                                                            |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------- |
+| `await db.flush()`            | Encrypts and saves now, if there are unsaved writes. Resolves when the data is stored.                  |
+| `await db.close()`            | Saves, stops sync, releases the lock and stops the Worker. You cannot use the handle afterwards.        |
+| `await SiafuDB.destroy(name)` | Deletes the database, its key and its rollback counter. Fails with `DatabaseLockedError` if it is open. |
+| `await db.storage()`          | Returns `{ persisted, estimate }`, where `estimate` is the browser's usage and quota for your origin.   |
+| `await SiafuDB.estimate()`    | The same estimate, without an open database.                                                            |
+
+You do not have to call `flush()`. The database saves itself 500 ms after the
+last write, and again when the page is hidden. Call `flush()` when you need
+to know the data is stored before you continue.
+
+```ts
+await db.execute("CREATE (:Note {title: $t})", { t: "saved now" });
+await db.flush();
+await db.close();
+```
+
+### Storage and encryption
+
+The database is saved as one encrypted snapshot. The encryption is
+AES-256-GCM. The key is created in the browser, cannot be exported, and is
+kept in IndexedDB.
+
+- This protects the stored data. Code that runs in your origin can still use
+  the key.
+- A stored copy that was modified is refused with `TamperError`.
+- An older copy put back in place of a newer one is refused with
+  `RollbackError`.
+- The whole graph is held in memory while the database is open. Large
+  databases have not been tested.
+
+<Note>
+  Tested in Chromium, Firefox and WebKit. Safari itself and mobile browsers
+  have not been tested. In 0.4.0, `open` fails where the browser offers its
+  private file storage but refuses to use it, for example Safari in private
+  browsing. The fix is merged for the next release.
+</Note>
+
+### Errors in the browser
+
+Every error the package throws is a `SiafuError` with a `code`:
+
+| Class                    | `code`               | When                                                                  |
+| ------------------------ | -------------------- | --------------------------------------------------------------------- |
+| `DatabaseLockedError`    | `locked`             | Another tab or Worker has the database open.                          |
+| `ClosedError`            | `closed`             | You used a handle after `close()`.                                    |
+| `TamperError`            | `tamper`             | The stored data failed authentication.                                |
+| `RollbackError`          | `rollback`           | The stored data is older than a copy already seen, or it was deleted. |
+| `KeyMissingError`        | `key-missing`        | An encrypted database exists but its key does not.                    |
+| `FormatError`            | `format`             | The stored data is not a SiafuDB snapshot, or its version is unknown. |
+| `UnsupportedCipherError` | `unsupported-cipher` | The stored data names a cipher this build cannot run.                 |
+| `SiafuError`             | `query`              | The engine rejected a query.                                          |
+| `SiafuError`             | `storage`            | The storage backend failed.                                           |
+| `SiafuError`             | `sync`               | Sync is not set up, is stopped, or the relay could not be used.       |
+| `SiafuError`             | `sync-state-version` | The stored sync state has a format this build does not read.          |
+| `SiafuError`             | `internal`           | Anything else, including a Worker that failed to load.                |
+
+```ts
+import { DatabaseLockedError, SiafuDB } from "@bundu/siafudb-web";
+
+try {
+  const db = await SiafuDB.open("notes", { lock: "fail" });
+} catch (e) {
+  if (e instanceof DatabaseLockedError) {
+    // Tell the user the database is open in another tab.
+  } else {
+    throw e;
+  }
+}
+```
+
+After a `RollbackError` or a `KeyMissingError`, the stored data cannot be
+loaded. `SiafuDB.destroy(name)` resets the database, and the data is lost.
+
+## Rust: `siafudb-core`
+
+```sh
+cargo add siafudb-core serde_json
+```
+
+Requires rustc 1.99 or newer.
+
+### Open
 
 ```rust
-db.transaction(|tx| {
-    tx.execute("CREATE (:Person {name: 'A'})")?;
-    tx.execute("CREATE (:Person {name: 'B'})")?;
+use siafudb_core::SiafuDB;
+
+fn main() -> Result<(), siafudb_core::SiafuError> {
+    // One file on disk. Created if it does not exist.
+    let db = SiafuDB::open("./notes.siafu")?;
+
+    // Nothing on disk. Gone when the value is dropped.
+    let scratch = SiafuDB::in_memory()?;
+
     Ok(())
-})?;
+}
 ```
 
-All writes inside the closure commit atomically or roll back as a unit. Mutations emit only on commit.
+| Call                            | What it does                                                            |
+| ------------------------------- | ----------------------------------------------------------------------- |
+| `SiafuDB::open(path)`           | Opens the database file at `path`, or creates it.                       |
+| `SiafuDB::in_memory()`          | Opens a database that keeps nothing on disk.                            |
+| `SiafuDB::from_snapshot(&[u8])` | Opens an in-memory database from bytes that `export_snapshot` produced. |
+| `db.export_snapshot()`          | Returns the whole graph as bytes.                                       |
+| `db.path()`                     | The file path, or `None` for an in-memory database.                     |
+| `db.instance_id()`              | A random id for this handle. It changes on every open.                  |
+| `db.fragment()`                 | The fragment description. Its `kind` is always `FragmentKind::Local`.   |
 
-## Lifecycle
+`open` needs the `native` feature, which is on by default.
 
-Drop semantics close the fragment cleanly. For explicit control:
+### Lifecycle
+
+There is no `close` method. Dropping the value closes the database, and the
+data is in the file when you open it again.
+
+A file can be open once per process. A second `open` of the same path fails
+with `SiafuError::EngineError` until you drop the first handle.
+
+`siafudb-core` does not encrypt the file. Protect it with the operating
+system, or encrypt a snapshot yourself.
+
+### Snapshots
+
+A snapshot is a copy of the whole graph as bytes. Use it for a backup, or to
+keep data where there is no file system.
 
 ```rust
-db.checkpoint()?;  // flush WAL
-db.close()?;       // release file handle
+use siafudb_core::SiafuDB;
+
+fn main() -> Result<(), siafudb_core::SiafuError> {
+    let db = SiafuDB::in_memory()?;
+    db.execute("CREATE (:Note {title: 'kept'})")?;
+
+    let bytes: Vec<u8> = db.export_snapshot()?;
+    let copy = SiafuDB::from_snapshot(&bytes)?;
+
+    let result = copy.query("MATCH (n:Note) RETURN n.title")?;
+    println!("{:?}", result.rows); // [[String("kept")]]
+    Ok(())
+}
 ```
 
-## Reference
+The copy is always an in-memory database. The bytes are not encrypted.
 
-Full signatures: `cargo doc --package siafudb-core --open`.
+### Building for WebAssembly
+
+To compile `siafudb-core` for `wasm32-unknown-unknown`, turn the default
+feature off and the `browser` feature on:
+
+```toml
+[dependencies]
+siafudb-core = { version = "0.4.0", default-features = false, features = ["browser"] }
+```
+
+With `browser` there is no `open`. Use `in_memory`, `export_snapshot` and
+`from_snapshot`, and store the bytes yourself. In a web page,
+`@bundu/siafudb-web` does this for you, with encryption.
+
+### Errors in Rust
+
+Every fallible call returns `Result<_, SiafuError>`:
+
+| Variant            | When                                                                               |
+| ------------------ | ---------------------------------------------------------------------------------- |
+| `EngineError`      | The engine could not open, lock, export or import a database.                      |
+| `QueryError`       | A query failed to parse or run, or a parameter or name was not accepted.           |
+| `SyncError`        | Change capture failed.                                                             |
+| `UnknownEndpoint`  | `apply_changes` met an edge whose endpoint node is not known. Nothing was applied. |
+| `InvalidChange`    | A change given to `apply_changes` is malformed.                                    |
+| `UnsupportedValue` | A property value cannot be carried in a change.                                    |
+
+`FragmentError`, `IdentityError`, `IoError` and `SerdeError` also exist in
+the enum. Nothing in 0.4.0 returns them.
+
+## Not in 0.4.0
+
+- **Fragment kinds.** `FragmentKind`, `Fragment` and `NodeAuthority` are
+  exported types, but `open` takes no fragment argument. See
+  [Fragments](/concepts/fragments) for the design.
+- **Schemas.** You do not declare node or edge types. The engine rejects the
+  `CREATE NODE TABLE` statement an earlier version of this page showed.
+- **A transaction API.** Neither package has a method that groups several
+  calls into one transaction. Each `execute` call is one statement.
+- **Configuration.** `SiafuConfig` and `DeploymentProfile` are exported, but
+  no function takes them.
+
+## Change capture and sync
+
+`siafudb-core` can report what local writes did and apply changes from
+another device. The browser package has `db.sync`. Both are documented in
+the [Sync API](/api-reference/sync).
